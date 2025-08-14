@@ -54,12 +54,20 @@ defmodule Pex.Validator do
   def validate(value, type, opts \\ []) do
     cast_fn = opts[:cast] || (&cast/2)
 
-    with {:ok, casted_value} <- cast_value(value, type, cast_fn),
+    with :ok <- check_required(value, opts),
+         {:ok, casted_value} <- cast_value(value, type, cast_fn),
          :ok <- valid_value(casted_value, type, opts) do
       {:ok, casted_value}
     else
       {:error, error} when is_binary(error) -> {:error, [error]}
       {:error, errors} -> {:error, errors}
+    end
+  end
+
+  defp check_required(value, opts) do
+    case Keyword.get(opts, :required, false) do
+      true when value in ["", nil] -> {:error, "required"}
+      _ -> :ok
     end
   end
 
@@ -151,7 +159,8 @@ defmodule Pex.Validator do
 
   # Custom
   defp cast(value, cast_fn) when is_function(cast_fn, 1), do: cast_fn.(value)
-
+  defp cast(value, :none), do: {:ok, value}
+  defp cast(value, nil), do: {:ok, value}
   defp cast(_value, _type), do: {:error, "unsupported type"}
 
   defp valid_value(value, type, opts) do
@@ -164,13 +173,6 @@ defmodule Pex.Validator do
       do: :ok,
       else: {:error, errors}
   end
-
-  # Required
-  defp valid?(:required, value, _type, true) do
-    if value in ["", nil], do: {:error, "required"}, else: :ok
-  end
-
-  defp valid?(:required, _value, _type, false), do: :ok
 
   # In
   defp valid?(:in, values, :list, list) do
@@ -280,7 +282,7 @@ defmodule Pex.Validator do
   end
 
   # Skip validation options that are not actual validations
-  defp valid?(opt, _value, _type, _check) when opt in [:cast, :type], do: :ok
+  defp valid?(opt, _value, _type, _check) when opt in [:cast, :type, :required], do: :ok
 
   defp valid?(op, _value, type, _check), do: raise("unsupported validation: #{op}, type: #{type}")
 
