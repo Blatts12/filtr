@@ -10,6 +10,7 @@ A powerful Elixir library for parsing and validating query parameters in Phoenix
 - 🎯 **Decorator Integration** - Clean controller annotations using the decorator package
 - 🚀 **Phoenix Integration** - Seamless integration with Phoenix controllers and LiveViews
 - 📊 **Comprehensive Error Handling** - Detailed error messages for validation failures
+- 🛟 **No-Error Mode** - Graceful fallback where invalid values become defaults or nil
 
 ## Installation
 
@@ -46,6 +47,11 @@ case Pex.parse(%{"page" => "2", "search" => "elixir"}, schema) do
     # Handle validation errors
     IO.inspect(errors)
 end
+
+# Or use no-error mode for graceful fallback
+{:ok, params} = Pex.parse(%{"page" => "invalid", "search" => "elixir"}, schema, no_error: true)
+# params = %{page: 1, limit: 10, search: "elixir", active: true}
+# Invalid "page" became the default value (1)
 ```
 
 ### Phoenix Controller Integration
@@ -183,21 +189,27 @@ schema = %{
 
 ### Core Functions
 
-- `Pex.parse(params, schema)` - Parse and validate parameters according to schema
+- `Pex.parse(params, schema, opts \\ [])` - Parse and validate parameters according to schema
+  - Options: `no_error: true` for graceful fallback mode
 
 ### Controller Helpers
 
-- `Pex.Controller.parse_params(conn, schema)` - Parse parameters from connection
-- `Pex.Controller.assign_parsed_params(conn, schema)` - Parse and assign to connection
+- `Pex.Controller.parse_params(conn, schema, opts \\ [])` - Parse parameters from connection
+- `Pex.Controller.assign_parsed_params(conn, schema, opts \\ [])` - Parse and assign to connection
 - `Pex.Controller.get_parsed_params(conn)` - Get validated parameters from assigns
 - `Pex.Controller.get_param_errors(conn)` - Get validation errors from assigns
 
 ### LiveView Helpers
 
-- `Pex.LiveView.parse_params(params, schema)` - Parse parameters in LiveView
-- `Pex.LiveView.parse_live_params(socket, schema)` - Parse from LiveView socket
-- `Pex.LiveView.assign_parsed_params(socket, schema, key)` - Parse and assign to socket
+- `Pex.LiveView.parse_params(params, schema, opts \\ [])` - Parse parameters in LiveView
+- `Pex.LiveView.parse_live_params(socket, schema, opts \\ [])` - Parse from LiveView socket
+- `Pex.LiveView.assign_parsed_params(socket, schema, key, opts \\ [])` - Parse and assign to socket
 - `Pex.LiveView.push_parsed_params(socket, params)` - Update URL with validated params
+
+### Decorators
+
+- `@decorate pex_params(schema)` - Standard validation with error responses
+- `@decorate pex_params(schema, no_error: true)` - Graceful validation with fallbacks
 
 ## Error Handling
 
@@ -212,6 +224,70 @@ Validation errors are returned as maps with parameter names as keys and error me
 ```
 
 When using decorators, validation failures automatically return a 400 Bad Request response with JSON error details.
+
+## No-Error Mode
+
+Pex supports a "no-error" mode where validation failures don't return errors. Instead, invalid values are replaced with fallback values:
+
+- **Default values** are used if specified in the schema
+- **nil** is used for optional parameters without defaults  
+- **nil** is used for required parameters without defaults
+
+### Usage Examples
+
+```elixir
+schema = %{
+  page: [type: :integer, default: 1],
+  search: [type: :string, optional: true],
+  name: [type: :string]  # required, no default
+}
+
+# With invalid values
+params = %{"page" => "invalid", "search" => 123, "name" => 456}
+
+# No-error mode - always returns {:ok, ...}
+{:ok, result} = Pex.parse(params, schema, no_error: true)
+# result = %{page: 1, search: nil, name: nil}
+```
+
+### Controller Integration
+
+```elixir
+defmodule MyAppWeb.UserController do
+  use Phoenix.Controller
+  use Pex.Controller
+
+  @pex_schema %{
+    page: [type: :integer, default: 1],
+    search: [type: :string, optional: true]
+  }
+
+  # Regular mode - may return errors
+  @decorate pex_params(@pex_schema)
+  def index(conn, _params) do
+    render(conn, "index.html")
+  end
+
+  # No-error mode - always succeeds
+  @decorate pex_params(@pex_schema, no_error: true)
+  def index_lenient(conn, _params) do
+    # Invalid params become defaults/nil automatically
+    render(conn, "index.html")
+  end
+end
+```
+
+### LiveView Integration
+
+```elixir
+def handle_params(params, _uri, socket) do
+  schema = %{tab: [type: :string, default: "overview"]}
+  
+  # No-error mode ensures this always succeeds
+  {:ok, validated_params} = parse_params(params, schema, no_error: true)
+  {:noreply, assign(socket, :tab_params, validated_params)}
+end
+```
 
 ## Documentation
 

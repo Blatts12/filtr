@@ -21,10 +21,12 @@ defmodule Pex.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:phoenix, "~> 1.7"},
-      {:phoenix_live_view, "~> 0.20"},
+      {:phoenix, ">= 1.5.0"},
+      {:phoenix_live_view, ">= 0.19.0"},
       {:decorator, "~> 1.4"},
-      {:ex_doc, "~> 0.31", only: :dev, runtime: false}
+      {:ex_doc, "~> 0.31", only: :dev, runtime: false},
+      {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
   end
 end
