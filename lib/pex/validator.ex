@@ -93,7 +93,7 @@ defmodule Pex.Validator do
   @float_opts [:min, :max, :in, :positive, :negative]
   @date_opts [:min, :max, :in]
   @datetime_opts [:min, :max, :in]
-  @list_opts [:min, :max, :in, :unique, :non_empty]
+  @list_opts [:min, :max, :in, :length, :unique, :non_empty]
 
   @supported_opts %{
     string: @string_opts,
@@ -408,7 +408,8 @@ defmodule Pex.Validator do
     end
   end
 
-  defp valid?(opt, _value, _type, _check) when opt in [:required], do: :ok
+  # Already handled
+  defp valid?(:required, _value, _type, _check), do: :ok
 
   defp valid?(opt, _value, type, _check),
     do: raise("unsupported validation: #{opt}, type: #{type}")
