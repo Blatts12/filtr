@@ -38,11 +38,11 @@ defmodule Pex.Validator do
   ## Examples
 
       # Basic validation
-      Pex.Validator.run("hello", :string, [min: 3, max: 10])
+      Validator.run("hello", :string, [min: 3, max: 10])
       # => {:ok, "hello"}
 
       # Failed validation
-      Pex.Validator.run("hi", :string, [min: 5])
+      Validator.run("hi", :string, [min: 5])
       # => {:error, ["must be at least 5 characters long"]}
 
       # Custom validation
@@ -54,7 +54,7 @@ defmodule Pex.Validator do
         end
       end
 
-      Pex.Validator.run("user@example.com", :string, [validate: email_validator])
+      Validator.run("user@example.com", :string, [validate: email_validator])
       # => {:ok, "user@example.com"}
 
   This module is typically used internally by `Pex.run/2` and `Pex.run/3`, but can be
@@ -102,22 +102,22 @@ defmodule Pex.Validator do
   ## Examples
 
       # String validation
-      Pex.Validator.run("hello", :string, [min: 3, max: 10])
+      Validator.run("hello", :string, [min: 3, max: 10])
       # => {:ok, "hello"}
 
-      Pex.Validator.run("hi", :string, [min: 5])
+      Validator.run("hi", :string, [min: 5])
       # => {:error, ["must be at least 5 characters long"]}
 
       # Numeric validation
-      Pex.Validator.run(25, :integer, [min: 18, max: 65])
+      Validator.run(25, :integer, [min: 18, max: 65])
       # => {:ok, 25}
 
       # Pattern matching
-      Pex.Validator.run("hello@example.com", :string, [pattern: ~r/@/])
+      Validator.run("hello@example.com", :string, [pattern: ~r/@/])
       # => {:ok, "hello@example.com"}
 
       # Custom validation
-      Pex.Validator.run("test", :string, [
+      Validator.run("test", :string, [
         validate: fn value ->
           if String.length(value) > 2, do: :ok, else: {:error, "too short"}
         end
@@ -125,11 +125,11 @@ defmodule Pex.Validator do
       # => {:ok, "test"}
 
       # Required validation
-      Pex.Validator.run(nil, :string, [required: true])
+      Validator.run(nil, :string, [required: true])
       # => {:error, "required"}
 
       # Multiple validation failures
-      Pex.Validator.run("x", :string, [min: 5, pattern: ~r/\\d+/])
+      Validator.run("x", :string, [min: 5, pattern: ~r/\\d+/])
       # => {:error, ["must be at least 5 characters long", "does not match pattern"]}
 
   ## Custom Validation Functions
@@ -138,6 +138,7 @@ defmodule Pex.Validator do
   - `:ok` - validation passes
   - `{:ok, _}` - validation passes (return value ignored)
   - `{:error, message}` - validation fails with custom message
+  - `:error` - validation fails with generic message
   - `false` - validation fails with generic message
   - Any other value - validation passes
   """
@@ -286,6 +287,7 @@ defmodule Pex.Validator do
       :ok -> :ok
       {:ok, _} -> :ok
       {:error, error} -> {:error, error}
+      :error -> {:error, "validation failed"}
       false -> {:error, "validation failed"}
       _ -> :ok
     end

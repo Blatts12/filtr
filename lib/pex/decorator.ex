@@ -2,7 +2,7 @@ defmodule Pex.Decorator do
   @moduledoc """
   Provides decorator functionality for Phoenix controllers using the decorator package.
 
-  This module defines the `@pex` decorator that can be used to automatically parse
+  This module defines the `pex` decorator that can be used to automatically parse
   and validate parameters in Phoenix controller actions. It integrates seamlessly
   with Phoenix controllers by intercepting the params before the action executes.
 
@@ -14,10 +14,10 @@ defmodule Pex.Decorator do
         use MyAppWeb, :controller
         use Decorator.Define, pex: 1
 
-        @pex schema: %{
+        @decorate pex(schema: %{
           name: [type: :string, required: true],
           age: [type: :integer, min: 18]
-        }
+        })
         def create(conn, params) do
           # params is now validated and cast according to schema
           IO.inspect(params) # %{name: "John", age: 25}
@@ -35,7 +35,7 @@ defmodule Pex.Decorator do
   By default, the decorator will raise an error if parameter validation fails.
   Use `:no_errors` option to enable graceful fallback to default values:
 
-      @pex schema: %{name: [type: :string, default: "Anonymous"]}, no_errors: true
+      @decorate pex(schema: %{name: [type: :string, default: "Anonymous"]}, no_errors: true)
       def action(conn, params) do
         # params.name will be "Anonymous" if validation fails
       end
@@ -43,20 +43,20 @@ defmodule Pex.Decorator do
   ## Examples
 
       # Basic usage
-      @pex schema: %{
+      @decorate pex(schema: %{
         q: [type: :string, required: true],
         page: [type: :integer, default: 1, min: 1]
-      }
+      })
       def search(conn, params) do
         # params.q is guaranteed to be a string
         # params.page is guaranteed to be an integer >= 1
       end
 
       # With no-error mode
-      @pex schema: %{
+      @decorate pex(schema: %{
         filter: [type: :string, default: "all"],
         sort: [type: :string, in: ["name", "date"], default: "name"]
-      }, no_errors: true
+      }, no_errors: true)
       def index(conn, params) do
         # Even with invalid input, params will have valid defaults
       end

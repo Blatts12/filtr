@@ -32,31 +32,31 @@ defmodule Pex.Caster do
   ## Examples
 
       # String casting (validation only)
-      Pex.Caster.run("hello", :string)
+      Caster.run("hello", :string)
       # => {:ok, "hello"}
 
       # Integer casting
-      Pex.Caster.run("42", :integer)
+      Caster.run("42", :integer)
       # => {:ok, 42}
 
       # Boolean casting
-      Pex.Caster.run("true", :boolean)
+      Caster.run("true", :boolean)
       # => {:ok, true}
 
       # Date casting
-      Pex.Caster.run("2023-12-25", :date)
+      Caster.run("2023-12-25", :date)
       # => {:ok, ~D[2023-12-25]}
 
       # List casting
-      Pex.Caster.run("apple,banana,orange", :list)
+      Caster.run("apple,banana,orange", :list)
       # => {:ok, ["apple", "banana", "orange"]}
 
       # Typed list casting
-      Pex.Caster.run("1,2,3", {:list, :integer})
+      Caster.run("1,2,3", {:list, :integer})
       # => {:ok, [1, 2, 3]}
 
       # Custom casting
-      Pex.Caster.run("HELLO", :string, [cast: &String.downcase/1])
+      Caster.run("HELLO", :string, [cast: &String.downcase/1])
       # => {:ok, "hello"}
 
   This module is typically used internally by `Pex.run/2` and `Pex.run/3`, but can be
@@ -88,61 +88,61 @@ defmodule Pex.Caster do
   ## Examples
 
       # Basic type casting
-      Pex.Caster.run("42", :integer)
+      Caster.run("42", :integer)
       # => {:ok, 42}
 
-      Pex.Caster.run("3.14", :float)
+      Caster.run("3.14", :float)
       # => {:ok, 3.14}
 
-      Pex.Caster.run("true", :boolean)
+      Caster.run("true", :boolean)
       # => {:ok, true}
 
       # Date and datetime casting
-      Pex.Caster.run("2023-12-25", :date)
+      Caster.run("2023-12-25", :date)
       # => {:ok, ~D[2023-12-25]}
 
-      Pex.Caster.run("2023-12-25T10:30:00Z", :datetime)
+      Caster.run("2023-12-25T10:30:00Z", :datetime)
       # => {:ok, ~U[2023-12-25 10:30:00Z]}
 
       # List casting
-      Pex.Caster.run("a,b,c", :list)
+      Caster.run("a,b,c", :list)
       # => {:ok, ["a", "b", "c"]}
 
-      Pex.Caster.run("1,2,3", {:list, :integer})
+      Caster.run("1,2,3", {:list, :integer})
       # => {:ok, [1, 2, 3]}
 
       # Custom casting function
       upcase_cast = fn value -> {:ok, String.upcase(value)} end
-      Pex.Caster.run("hello", :string, [cast: upcase_cast])
+      Caster.run("hello", :string, [cast: upcase_cast])
       # => {:ok, "HELLO"}
 
       # Arity-2 custom casting (receives value and type)
-      debug_cast = fn value, type -> 
+      debug_cast = fn value, type ->
         IO.puts("Casting " <> inspect(value) <> " to " <> inspect(type))
         {:ok, value}
       end
-      Pex.Caster.run("test", :string, [cast: debug_cast])
+      Caster.run("test", :string, [cast: debug_cast])
 
       # Arity-3 custom casting (receives value, type, and opts)
       context_cast = fn value, type, opts ->
         prefix = Keyword.get(opts, :prefix, "")
         {:ok, prefix <> value}
       end
-      Pex.Caster.run("world", :string, [cast: context_cast, prefix: "hello "])
+      Caster.run("world", :string, [cast: context_cast, prefix: "hello "])
       # => {:ok, "hello world"}
 
   ## Error Cases
 
       # Invalid integer
-      Pex.Caster.run("not_a_number", :integer)
+      Caster.run("not_a_number", :integer)
       # => {:error, "invalid integer"}
 
       # Invalid boolean
-      Pex.Caster.run("maybe", :boolean)
+      Caster.run("maybe", :boolean)
       # => {:error, "invalid boolean"}
 
       # Invalid date
-      Pex.Caster.run("not-a-date", :date)
+      Caster.run("not-a-date", :date)
       # => {:error, "invalid date"}
 
   ## Special Values
@@ -150,10 +150,10 @@ defmodule Pex.Caster do
   Empty strings and `nil` values are passed through unchanged for all types,
   allowing the validation layer to handle required field checks.
 
-      Pex.Caster.run("", :integer)
+      Caster.run("", :integer)
       # => {:ok, ""}
 
-      Pex.Caster.run(nil, :string)
+      Caster.run(nil, :string)
       # => {:ok, nil}
   """
   @spec run(value :: any(), type :: Pex.supported_types()) ::

@@ -74,7 +74,7 @@ defmodule Pex.LiveView do
 
       # Parameter manipulation
       def handle_event("filter_by_category", %{"category" => cat}, socket) do
-        new_params = Pex.LiveView.put_param(socket.assigns, :category, cat)
+        new_params = put_param(socket.assigns, :category, cat)
         {:noreply, assign(socket, pex: new_params)}
       end
 
@@ -83,8 +83,8 @@ defmodule Pex.LiveView do
   By default, invalid parameters will cause errors. Use `:no_errors` option for
   graceful fallback to defaults:
 
-      use Pex.LiveView, 
-        schema: %{search: [type: :string, default: ""]}, 
+      use Pex.LiveView,
+        schema: %{search: [type: :string, default: ""]},
         no_errors: true
   """
 
@@ -133,7 +133,7 @@ defmodule Pex.LiveView do
 
   ## Parameters
 
-  - `assigns` - Socket assigns or assigns map containing the current `:pex` parameters
+  - `assigns` - Socket or assigns map containing the current `:pex` parameters
   - `key` - The parameter key to add or update
   - `value` - The new value for the parameter
 
@@ -145,13 +145,13 @@ defmodule Pex.LiveView do
 
       # In a LiveView event handler
       def handle_event("set_filter", %{"type" => filter_type}, socket) do
-        new_params = Pex.LiveView.put_param(socket.assigns, :filter, filter_type)
-        {:noreply, assign(socket, pex: new_params)}
+        new_params = put_param(socket, :filter, filter_type)
+        {:noreply, push_patch(socket, to: ~p"/search?\#{new_params}")}
       end
 
       # Direct usage with assigns map
       assigns = %{pex: %{search: "old query", page: 1}}
-      new_params = Pex.LiveView.put_param(assigns, :search, "new query")
+      new_params = put_param(assigns, :search, "new query")
       # => %{search: "new query", page: 1}
   """
   @spec put_param(Socket.t() | map(), atom(), any()) :: Pex.pex_params()
@@ -168,7 +168,7 @@ defmodule Pex.LiveView do
 
   ## Parameters
 
-  - `assigns` - Socket assigns or assigns map containing the current `:pex` parameters
+  - `assigns` - Socket or assigns map containing the current `:pex` parameters
   - `key` - The parameter key to remove
 
   ## Returns
@@ -179,13 +179,13 @@ defmodule Pex.LiveView do
 
       # Remove a filter parameter
       def handle_event("clear_filter", _params, socket) do
-        new_params = Pex.LiveView.delete_param(socket.assigns, :filter)
-        {:noreply, assign(socket, pex: new_params)}
+        new_params = delete_param(socket.assigns, :filter)
+        {:noreply, push_patch(socket, to: ~p"/search?\#{new_params}")}
       end
 
       # Direct usage
       assigns = %{pex: %{search: "query", filter: "active", page: 1}}
-      new_params = Pex.LiveView.delete_param(assigns, :filter)
+      new_params = delete_param(assigns, :filter)
       # => %{search: "query", page: 1}
   """
   @spec delete_param(Socket.t() | map(), atom()) :: Pex.pex_params()
@@ -202,7 +202,7 @@ defmodule Pex.LiveView do
 
   ## Parameters
 
-  - `assigns` - Socket assigns or assigns map containing the current `:pex` parameters
+  - `assigns` - Socket or assigns map containing the current `:pex` parameters
   - `keys` - List of parameter keys to remove
 
   ## Returns
@@ -214,13 +214,13 @@ defmodule Pex.LiveView do
       # Clear all filter-related parameters
       def handle_event("clear_all_filters", _params, socket) do
         filter_keys = [:category, :price_min, :price_max, :brand]
-        new_params = Pex.LiveView.drop_params(socket.assigns, filter_keys)
-        {:noreply, assign(socket, pex: new_params)}
+        new_params = drop_params(socket, filter_keys)
+        {:noreply, push_patch(socket, to: ~p"/search?\#{params}")}
       end
 
       # Direct usage
       assigns = %{pex: %{search: "query", filter: "active", sort: "name", page: 1}}
-      new_params = Pex.LiveView.drop_params(assigns, [:filter, :sort])
+      new_params = drop_params(assigns, [:filter, :sort])
       # => %{search: "query", page: 1}
   """
   @spec drop_params(Socket.t() | map(), [atom()]) :: Pex.pex_params()
@@ -238,7 +238,7 @@ defmodule Pex.LiveView do
 
   ## Parameters
 
-  - `assigns` - Socket assigns or assigns map containing the current `:pex` parameters
+  - `assigns` - Socket or assigns map containing the current `:pex` parameters
   - `key` - The parameter key to update
   - `default` - Default value to use if the key doesn't exist
   - `update_fn` - Function to apply to the current value
@@ -251,31 +251,18 @@ defmodule Pex.LiveView do
 
       # Increment a page counter
       def handle_event("next_page", _params, socket) do
-        new_params = Pex.LiveView.update_param(socket.assigns, :page, 1, &(&1 + 1))
-        {:noreply, assign(socket, pex: new_params)}
-      end
-
-      # Toggle a boolean flag
-      def handle_event("toggle_advanced", _params, socket) do
-        new_params = Pex.LiveView.update_param(socket.assigns, :advanced, false, &(!&1))
-        {:noreply, assign(socket, pex: new_params)}
-      end
-
-      # Add item to a list
-      def handle_event("add_tag", %{"tag" => tag}, socket) do
-        add_tag_fn = fn tags -> [tag | tags] end
-        new_params = Pex.LiveView.update_param(socket.assigns, :tags, [], add_tag_fn)
-        {:noreply, assign(socket, pex: new_params)}
+        new_params = update_param(socket.assigns, :page, 1, &(&1 + 1))
+        {:noreply, push_patch(socket, to: ~p"/search?\#{new_params}")}
       end
 
       # Direct usage
       assigns = %{pex: %{count: 5, enabled: true}}
-      new_params = Pex.LiveView.update_param(assigns, :count, 0, &(&1 * 2))
+      new_params = update_param(assigns, :count, 0, &(&1 * 2))
       # => %{count: 10, enabled: true}
 
       # With missing key
       assigns = %{pex: %{enabled: true}}
-      new_params = Pex.LiveView.update_param(assigns, :count, 0, &(&1 + 1))
+      new_params = update_param(assigns, :count, 0, &(&1 + 1))
       # => %{count: 1, enabled: true}
   """
   @spec update_param(Socket.t() | map(), atom(), any(), (any() -> any())) :: Pex.pex_params()

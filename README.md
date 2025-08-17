@@ -50,10 +50,10 @@ defmodule MyAppWeb.UserController do
   use MyAppWeb, :controller
   use Pex.Decorator
 
-  @pex schema: %{
+  @decorate pex(schema: %{
     name: [type: :string, required: true],
     age: [type: :integer, min: 18]
-  }
+  })
   def create(conn, params) do
     # params is now validated and cast according to schema
     # If validation fails, an error is raised
@@ -95,7 +95,7 @@ Pex supports the following built-in types:
 - `:string` - String values
 - `:integer` - Integer numbers
 - `:float` - Floating point numbers
-- `:boolean` - Boolean values (true/false)
+- `:boolean` - Boolean values (true/false/"true"/"false"/"1"/"0")
 - `:date` - Date values (ISO8601 format)
 - `:datetime` - DateTime values (ISO8601 format)
 - `:list` - List of strings
@@ -204,14 +204,14 @@ result = Pex.run(schema, params)
 
 ### Strict Mode (Default)
 
-By default, Pex raises errors when validation fails:
+By default, Pex returns error tuples:
 
 ```elixir
 schema = %{name: [type: :string, required: true]}
 params = %{}
 
 Pex.run(schema, params)
-# Raises: {:error, ["required"]}
+# Returns: %{name: {:error, ["required"]}}
 ```
 
 ### No-Error Mode
@@ -251,12 +251,16 @@ schema = %{
 ```elixir
 defmodule MyAppWeb.SearchController do
   use MyAppWeb, :controller
-  use Decorator.Define, pex: 1
+  use Pex.Decorator
 
-  @pex schema: %{
-    q: [type: :string, default: ""],
-    page: [type: :integer, default: 1, min: 1]
-  }, no_errors: true
+  @decorate pex(
+    schema: %{
+      q: [type: :string, default: ""],
+      page: [type: :integer, default: 1, min: 1]
+    },
+    no_errors: true
+  )
+
   def index(conn, params) do
     # params will always have valid values, falling back to defaults
     render(conn, "index.html", query: params.q, page: params.page)
@@ -276,16 +280,19 @@ defmodule MyAppWeb.SearchLive do
     filters: [type: {:list, :string}, default: []]
   }
 
-  def handle_event("add_filter", %{"filter" => filter}, socket) do
-    new_params = put_param(socket, :filters, [filter])
-    {:noreply, assign(socket, pex: new_params)}
+  def handle_event("change_view", %{"view" => view}, socket) do
+    params = put_param(socket, :view, view)
+    {:noreply, push_patch(socket, to: ~p"/search?#{params}")}
   end
 
-  def handle_event("remove_filter", %{"filter" => filter}, socket) do
-    current_filters = socket.assigns.pex.filters
-    new_filters = List.delete(current_filters, filter)
-    new_params = put_param(socket, :filters, new_filters)
-    {:noreply, assign(socket, pex: new_params)}
+  def handle_event("change_filters", %{"filters" => filters}, socket) do
+    params = put_param(socket, :filters, filters)
+    {:noreply, push_patch(socket, to: ~p"/search?#{params}")}
+  end
+
+  def handle_event("next_page", _params_, socket) do
+    params = update_param(socket, :page, 1, &(&1 + 1))
+    {:noreply, push_patch(socket, to: ~p"/search?#{params}")}
   end
 end
 ```
