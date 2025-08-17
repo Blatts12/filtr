@@ -1,5 +1,65 @@
 defmodule Pex.Validator do
-  @moduledoc false
+  @moduledoc """
+  Provides validation functionality for parameter values based on their types and constraints.
+
+  This module handles all validation logic for Pex, supporting both built-in validators
+  for common data types and custom validation functions. It works in conjunction with
+  `Pex.Caster` to ensure parameters are both properly cast and validated.
+
+  ## Supported Validators
+
+  ### Common Validators
+  - `required` - Ensures the value is not empty or nil
+  - `validate` - Custom validation function
+
+  ### String Validators
+  - `min` - Minimum string length
+  - `max` - Maximum string length
+  - `pattern` - Regex pattern matching
+  - `starts_with` - String must start with specified prefix
+  - `ends_with` - String must end with specified suffix
+  - `in` - Value must be in the provided list
+
+  ### Numeric Validators (Integer/Float)
+  - `min` - Minimum numeric value
+  - `max` - Maximum numeric value
+  - `in` - Value must be in the provided list
+
+  ### Date/DateTime Validators
+  - `min` - Minimum date/datetime
+  - `max` - Maximum date/datetime
+  - `in` - Value must be in the provided list
+
+  ### List Validators
+  - `min` - Minimum list length
+  - `max` - Maximum list length
+  - `in` - All values in list must be in the provided list
+
+  ## Examples
+
+      # Basic validation
+      Pex.Validator.run("hello", :string, [min: 3, max: 10])
+      # => {:ok, "hello"}
+
+      # Failed validation
+      Pex.Validator.run("hi", :string, [min: 5])
+      # => {:error, ["must be at least 5 characters long"]}
+
+      # Custom validation
+      email_validator = fn email ->
+        if String.contains?(email, "@") do
+          :ok
+        else
+          {:error, "must be a valid email"}
+        end
+      end
+
+      Pex.Validator.run("user@example.com", :string, [validate: email_validator])
+      # => {:ok, "user@example.com"}
+
+  This module is typically used internally by `Pex.run/2` and `Pex.run/3`, but can be
+  used directly for custom validation scenarios.
+  """
 
   @common_opts [:validate]
   @string_opts [:min, :max, :in, :pattern, :starts_with, :ends_with]
@@ -20,6 +80,67 @@ defmodule Pex.Validator do
     __none__: @none_opts
   }
 
+  @doc """
+  Validates a value according to its type and validation options.
+
+  This function applies validation rules to a value that has already been cast to
+  its appropriate type. It checks constraints like minimum/maximum values, required
+  fields, pattern matching, and custom validation functions.
+
+  ## Parameters
+
+  - `value` - The value to validate (should already be cast to the correct type)
+  - `type` - The expected type of the value (one of `Pex.supported_types()`)
+  - `opts` - Keyword list of validation options
+
+  ## Returns
+
+  - `{:ok, value}` when validation passes
+  - `{:error, error_message}` when a single validation fails
+  - `{:error, [error_messages]}` when multiple validations fail
+
+  ## Examples
+
+      # String validation
+      Pex.Validator.run("hello", :string, [min: 3, max: 10])
+      # => {:ok, "hello"}
+
+      Pex.Validator.run("hi", :string, [min: 5])
+      # => {:error, ["must be at least 5 characters long"]}
+
+      # Numeric validation
+      Pex.Validator.run(25, :integer, [min: 18, max: 65])
+      # => {:ok, 25}
+
+      # Pattern matching
+      Pex.Validator.run("hello@example.com", :string, [pattern: ~r/@/])
+      # => {:ok, "hello@example.com"}
+
+      # Custom validation
+      Pex.Validator.run("test", :string, [
+        validate: fn value ->
+          if String.length(value) > 2, do: :ok, else: {:error, "too short"}
+        end
+      ])
+      # => {:ok, "test"}
+
+      # Required validation
+      Pex.Validator.run(nil, :string, [required: true])
+      # => {:error, "required"}
+
+      # Multiple validation failures
+      Pex.Validator.run("x", :string, [min: 5, pattern: ~r/\\d+/])
+      # => {:error, ["must be at least 5 characters long", "does not match pattern"]}
+
+  ## Custom Validation Functions
+
+  Custom validation functions can return:
+  - `:ok` - validation passes
+  - `{:ok, _}` - validation passes (return value ignored)
+  - `{:error, message}` - validation fails with custom message
+  - `false` - validation fails with generic message
+  - Any other value - validation passes
+  """
   @spec run(value :: any(), type :: Pex.supported_types()) ::
           {:ok, any()} | {:error, [binary()] | binary()}
   @spec run(value :: any(), type :: Pex.supported_types(), opts :: keyword()) ::
