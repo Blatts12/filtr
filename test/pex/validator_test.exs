@@ -244,12 +244,11 @@ defmodule Pex.ValidatorTest do
       assert Validator.run(["a", "b", "c"], :list, max: 3) == {:ok, ["a", "b", "c"]}
     end
 
-    test "in validation not supported for lists - options are filtered out" do
-      allowed = ["red", "green", "blue"]
-      # The :in option should be filtered out for list type since it's not in @list_opts
-      assert Validator.run(["red", "yellow"], :list, in: allowed) == {:ok, ["red", "yellow"]}
+    test "in validation" do
+      assert Validator.run(["red", "yellow"], :list, in: ["red", "green"]) ==
+               {:error, ["invalid value in list"]}
 
-      assert Validator.run(["purple", "yellow"], :list, in: allowed) ==
+      assert Validator.run(["purple", "yellow"], :list, in: ["purple", "yellow"]) ==
                {:ok, ["purple", "yellow"]}
     end
   end

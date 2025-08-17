@@ -67,7 +67,7 @@ defmodule Pex.Validator do
   @float_opts [:min, :max, :in]
   @date_opts [:min, :max, :in]
   @datetime_opts [:min, :max, :in]
-  @list_opts [:min, :max]
+  @list_opts [:min, :max, :in, :subset]
   @none_opts []
 
   @supported_opts %{
