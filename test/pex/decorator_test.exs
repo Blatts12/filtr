@@ -17,7 +17,7 @@ defmodule Pex.DecoratorTest do
       schema = Macro.escape(%{name: [type: :string]})
       opts = [schema: schema]
       body = quote do: {:ok, params}
-      context = %{args: [%{}, %{}]}
+      context = %{args: [Macro.escape(%{}), Macro.escape(%{})]}
 
       result = pex(opts, body, context)
 
@@ -29,7 +29,7 @@ defmodule Pex.DecoratorTest do
       schema = Macro.escape(%{name: [type: :string]})
       opts = [schema: schema, no_errors: true]
       body = quote do: {:ok, params}
-      context = %{args: [:conn, :params]}
+      context = %{args: [Macro.escape(%{}), Macro.escape(%{})]}
 
       result = pex(opts, body, context)
 
@@ -42,7 +42,7 @@ defmodule Pex.DecoratorTest do
       schema = Macro.escape(%{name: [type: :string]})
       opts = [schema: schema]
       body = quote do: {:ok, params}
-      context = %{args: [%{}, %{}]}
+      context = %{args: [Macro.escape(%{}), Macro.escape(%{})]}
 
       result = pex(opts, body, context)
 

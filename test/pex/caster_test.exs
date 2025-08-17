@@ -57,7 +57,7 @@ defmodule Pex.CasterTest do
       assert Caster.run("42", :integer) == {:ok, 42}
       assert Caster.run("0", :integer) == {:ok, 0}
       assert Caster.run("-42", :integer) == {:ok, -42}
-      assert Caster.run("999999", :integer) == {:ok, 999999}
+      assert Caster.run("999999", :integer) == {:ok, 999_999}
     end
 
     test "passes through integer values" do
@@ -188,12 +188,15 @@ defmodule Pex.CasterTest do
     end
 
     test "handles empty strings and spaces in list casting" do
-      assert Caster.run("a,,c", :list) == {:ok, ["a", "c"]}  # trim: true removes empty strings
-      assert Caster.run("  a  ,  b  ,  c  ", :list) == {:ok, ["  a  ", "  b  ", "  c  "]}  # spaces preserved in elements
+      # trim: true removes empty strings
+      assert Caster.run("a,,c", :list) == {:ok, ["a", "c"]}
+      # spaces preserved in elements
+      assert Caster.run("  a  ,  b  ,  c  ", :list) == {:ok, ["  a  ", "  b  ", "  c  "]}
     end
 
     test "handles empty string for list" do
-      assert Caster.run("", :list) == {:ok, ""}  # empty string passes through unchanged
+      # empty string passes through unchanged
+      assert Caster.run("", :list) == {:ok, ""}
     end
 
     test "rejects non-string, non-list values" do
@@ -222,7 +225,8 @@ defmodule Pex.CasterTest do
 
     test "collects unique errors from typed list casting" do
       result = Caster.run(["invalid", "also_invalid", "invalid"], {:list, :integer})
-      assert {:error, ["invalid integer"]} = result  # Errors are deduplicated
+      # Errors are deduplicated
+      assert {:error, ["invalid integer"]} = result
     end
 
     test "casts string to typed list" do
@@ -239,15 +243,16 @@ defmodule Pex.CasterTest do
   describe "custom casting functions" do
     test "uses custom 1-arity casting function" do
       upcase_cast = fn value -> {:ok, String.upcase(value)} end
-      result = Caster.run("hello", :string, [cast: upcase_cast])
+      result = Caster.run("hello", :string, cast: upcase_cast)
       assert result == {:ok, "HELLO"}
     end
 
     test "uses custom 2-arity casting function" do
-      type_aware_cast = fn value, type -> 
+      type_aware_cast = fn value, type ->
         {:ok, "#{value}_#{type}"}
       end
-      result = Caster.run("test", :string, [cast: type_aware_cast])
+
+      result = Caster.run("test", :string, cast: type_aware_cast)
       assert result == {:ok, "test_string"}
     end
 
@@ -256,19 +261,20 @@ defmodule Pex.CasterTest do
         prefix = Keyword.get(opts, :prefix, "")
         {:ok, "#{prefix}#{value}_#{type}"}
       end
-      result = Caster.run("test", :string, [cast: context_cast, prefix: "custom_"])
+
+      result = Caster.run("test", :string, cast: context_cast, prefix: "custom_")
       assert result == {:ok, "custom_test_string"}
     end
 
     test "handles custom casting function errors" do
       error_cast = fn _value -> {:error, "custom error"} end
-      result = Caster.run("test", :string, [cast: error_cast])
+      result = Caster.run("test", :string, cast: error_cast)
       assert result == {:error, "custom error"}
     end
 
     test "raises error for invalid cast function" do
       assert_raise RuntimeError, "invalid cast function provided", fn ->
-        Caster.run("test", :string, [cast: "not_a_function"])
+        Caster.run("test", :string, cast: "not_a_function")
       end
     end
   end
@@ -308,7 +314,7 @@ defmodule Pex.CasterTest do
     end
 
     test "ignores irrelevant options" do
-      assert Caster.run("42", :integer, [irrelevant: true]) == {:ok, 42}
+      assert Caster.run("42", :integer, irrelevant: true) == {:ok, 42}
     end
 
     test "casting with no options defaults to built-in casting" do

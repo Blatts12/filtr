@@ -10,14 +10,14 @@ defmodule PexTest do
     test "processes simple string parameter" do
       schema = %{name: [type: :string]}
       params = %{"name" => "John"}
-      
+
       assert Pex.run(schema, params) == %{name: "John"}
     end
 
     test "processes simple integer parameter" do
       schema = %{age: [type: :integer]}
       params = %{"age" => "25"}
-      
+
       assert Pex.run(schema, params) == %{age: 25}
     end
 
@@ -26,8 +26,9 @@ defmodule PexTest do
         name: [type: :string, default: "Anonymous"],
         age: [type: :integer, default: 0]
       }
+
       params = %{}
-      
+
       assert Pex.run(schema, params) == %{name: "Anonymous", age: 0}
     end
 
@@ -37,22 +38,23 @@ defmodule PexTest do
         age: [type: :integer],
         active: [type: :boolean]
       }
+
       params = %{"name" => "John", "age" => "25", "active" => "true"}
-      
+
       assert Pex.run(schema, params) == %{name: "John", age: 25, active: true}
     end
 
     test "supports atom keys in params" do
       schema = %{name: [type: :string]}
       params = %{name: "John"}
-      
+
       assert Pex.run(schema, params) == %{name: "John"}
     end
 
     test "string keys take precedence over atom keys" do
       schema = %{name: [type: :string]}
       params = %{"name" => "String John", name: "Atom John"}
-      
+
       assert Pex.run(schema, params) == %{name: "String John"}
     end
 
@@ -66,22 +68,24 @@ defmodule PexTest do
           theme: [type: :string, default: "light"]
         }
       }
+
       params = %{
         "user" => %{"name" => "John", "age" => "25"},
         "settings" => %{}
       }
-      
+
       expected = %{
         user: %{name: "John", age: 25},
         settings: %{theme: "light"}
       }
+
       assert Pex.run(schema, params) == expected
     end
 
     test "handles validation failure by including error in result" do
       schema = %{name: [type: :string, required: true]}
       params = %{}
-      
+
       result = Pex.run(schema, params)
       # Current implementation has a bug - it includes error tuple as map entry
       assert Map.has_key?(result, :error)
@@ -90,7 +94,7 @@ defmodule PexTest do
     test "handles casting failure by including error in result" do
       schema = %{age: [type: :integer]}
       params = %{"age" => "not_a_number"}
-      
+
       result = Pex.run(schema, params)
       # Current implementation has a bug - it includes error tuple as map entry
       assert Map.has_key?(result, :error)
@@ -103,8 +107,9 @@ defmodule PexTest do
         name: [type: :string, required: true, default: "Anonymous"],
         age: [type: :integer, default: 0]
       }
+
       params = %{}
-      
+
       result = Pex.run(schema, params, no_errors: true)
       assert result == %{name: "Anonymous", age: 0}
     end
@@ -114,8 +119,9 @@ defmodule PexTest do
         age: [type: :integer, default: 18],
         score: [type: :float, default: 0.0]
       }
+
       params = %{"age" => "not_a_number", "score" => "invalid"}
-      
+
       result = Pex.run(schema, params, no_errors: true)
       assert result == %{age: 18, score: 0.0}
     end
@@ -123,7 +129,7 @@ defmodule PexTest do
     test "returns nil for missing defaults when no_errors: true" do
       schema = %{name: [type: :string, required: true]}
       params = %{}
-      
+
       result = Pex.run(schema, params, no_errors: true)
       assert result == %{name: nil}
     end
@@ -133,8 +139,9 @@ defmodule PexTest do
         name: [type: :string],
         age: [type: :integer]
       }
+
       params = %{"name" => "John", "age" => "25"}
-      
+
       result = Pex.run(schema, params, no_errors: true)
       assert result == %{name: "John", age: 25}
     end
@@ -144,27 +151,27 @@ defmodule PexTest do
     test "executes 0-arity default functions" do
       counter = Agent.start_link(fn -> 0 end)
       {:ok, pid} = counter
-      
+
       default_fn = fn ->
         Agent.update(pid, &(&1 + 1))
         Agent.get(pid, & &1)
       end
-      
+
       schema = %{count: [type: :integer, default: default_fn]}
       params = %{}
-      
+
       result = Pex.run(schema, params)
       assert result == %{count: 1}
-      
+
       Agent.stop(pid)
     end
 
     test "executes 1-arity default functions with key" do
       default_fn = fn key -> "default_#{key}" end
-      
+
       schema = %{name: [type: :string, default: default_fn]}
       params = %{}
-      
+
       result = Pex.run(schema, params)
       assert result == %{name: "default_name"}
     end
@@ -174,10 +181,10 @@ defmodule PexTest do
         user_id = Map.get(params, "user_id", "unknown")
         "#{key}_#{user_id}"
       end
-      
+
       schema = %{session: [type: :string, default: default_fn]}
       params = %{"user_id" => "123"}
-      
+
       result = Pex.run(schema, params)
       assert result == %{session: "session_123"}
     end
@@ -201,6 +208,7 @@ defmodule PexTest do
         tags: [type: :list],
         scores: [type: {:list, :integer}]
       }
+
       params = %{
         "name" => "John",
         "age" => "25",
@@ -211,9 +219,9 @@ defmodule PexTest do
         "tags" => "elixir,phoenix,web",
         "scores" => "85,92,78"
       }
-      
+
       result = Pex.run(schema, params)
-      
+
       assert result.name == "John"
       assert result.age == 25
       assert result.height == 5.9
@@ -231,8 +239,9 @@ defmodule PexTest do
         name: [type: :string, min: 2, max: 10],
         email: [type: :string, pattern: ~r/@/]
       }
+
       params = %{"name" => "John", "email" => "john@example.com"}
-      
+
       result = Pex.run(schema, params)
       assert result == %{name: "John", email: "john@example.com"}
     end
@@ -242,8 +251,9 @@ defmodule PexTest do
         age: [type: :integer, min: 18, max: 65],
         score: [type: :float, min: 0.0, max: 100.0]
       }
+
       params = %{"age" => "25", "score" => "85.5"}
-      
+
       result = Pex.run(schema, params)
       assert result == %{age: 25, score: 85.5}
     end
@@ -253,8 +263,9 @@ defmodule PexTest do
         name: [type: :string, required: true],
         email: [type: :string, required: true]
       }
+
       params = %{"name" => "John", "email" => "john@example.com"}
-      
+
       result = Pex.run(schema, params)
       assert result == %{name: "John", email: "john@example.com"}
     end
@@ -267,12 +278,13 @@ defmodule PexTest do
           {:error, "invalid email format"}
         end
       end
-      
+
       schema = %{
         email: [type: :string, validate: email_validator]
       }
+
       params = %{"email" => "john@example.com"}
-      
+
       result = Pex.run(schema, params)
       assert result == %{email: "john@example.com"}
     end
