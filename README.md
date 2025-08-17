@@ -56,7 +56,6 @@ defmodule MyAppWeb.UserController do
   })
   def create(conn, params) do
     # params is now validated and cast according to schema
-    # If validation fails, an error is raised
     IO.inspect(params) # %{name: "John", age: 25}
     # ... rest of controller action
   end
