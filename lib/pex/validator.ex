@@ -11,6 +11,7 @@ defmodule Pex.Validator do
   ### Common Validators
   - `required` - Ensures the value is not empty or nil
   - `validate` - Custom validation function
+  - `not_nil` - Must not be nil (allows empty strings)
 
   ### String Validators
   - `min` - Minimum string length
@@ -19,11 +20,16 @@ defmodule Pex.Validator do
   - `starts_with` - String must start with specified prefix
   - `ends_with` - String must end with specified suffix
   - `in` - Value must be in the provided list
+  - `contains` - String must contain specified substring
+  - `length` - Exact string length requirement
+  - `alphanumeric` - Must contain only letters and numbers
 
   ### Numeric Validators (Integer/Float)
   - `min` - Minimum numeric value
   - `max` - Maximum numeric value
   - `in` - Value must be in the provided list
+  - `positive` - Must be greater than zero
+  - `negative` - Must be less than zero
 
   ### Date/DateTime Validators
   - `min` - Minimum date/datetime
@@ -34,6 +40,8 @@ defmodule Pex.Validator do
   - `min` - Minimum list length
   - `max` - Maximum list length
   - `in` - All values in list must be in the provided list
+  - `unique` - All items must be unique
+  - `non_empty` - List cannot be empty
 
   ## Examples
 
@@ -55,20 +63,37 @@ defmodule Pex.Validator do
       end
 
       Validator.run("user@example.com", :string, [validate: email_validator])
-      # => {:ok, "user@example.com"}
+      # => {:ok, "user@example.com"}}
+
+      # Numeric validation
+      Validator.run(42, :integer, [positive: true])
+      # => {:ok, 42}
+
+      # List validation
+      Validator.run([1, 2, 3], :list, [unique: true, non_empty: true])
+      # => {:ok, [1, 2, 3]}
 
   This module is typically used internally by `Pex.run/2` and `Pex.run/3`, but can be
   used directly for custom validation scenarios.
   """
 
-  @common_opts [:validate, :required]
-  @string_opts [:min, :max, :in, :pattern, :starts_with, :ends_with]
-  @integer_opts [:min, :max, :in]
-  @float_opts [:min, :max, :in]
+  @common_opts [:validate, :required, :not_nil]
+  @string_opts [
+    :min,
+    :max,
+    :in,
+    :pattern,
+    :starts_with,
+    :ends_with,
+    :contains,
+    :length,
+    :alphanumeric
+  ]
+  @integer_opts [:min, :max, :in, :positive, :negative]
+  @float_opts [:min, :max, :in, :positive, :negative]
   @date_opts [:min, :max, :in]
   @datetime_opts [:min, :max, :in]
-  @list_opts [:min, :max, :in, :subset]
-  @none_opts []
+  @list_opts [:min, :max, :in, :unique, :non_empty]
 
   @supported_opts %{
     string: @string_opts,
@@ -77,7 +102,7 @@ defmodule Pex.Validator do
     date: @date_opts,
     datetime: @datetime_opts,
     list: @list_opts,
-    __none__: @none_opts
+    __none__: []
   }
 
   @doc """
@@ -173,65 +198,125 @@ defmodule Pex.Validator do
       else: {:error, errors}
   end
 
-  # In
-  defp valid?(:in, values, :list, list) do
-    if Enum.any?(values, &(&1 not in list)),
-      do: {:error, "invalid value in list"},
-      else: :ok
-  end
+  # STRING VALIDATORS
 
-  defp valid?(:in, value, _type, list) do
-    if value in list, do: :ok, else: {:error, "value not in list"}
-  end
-
-  # Max
-  defp valid?(:max, value, :string, max) do
-    if String.length(value) <= max,
-      do: :ok,
-      else: {:error, "must be at most #{max} characters long"}
-  end
-
-  defp valid?(:max, value, :integer, max) do
-    if value <= max, do: :ok, else: {:error, "must be at most #{max}"}
-  end
-
-  defp valid?(:max, value, :float, max) do
-    if value <= max, do: :ok, else: {:error, "must be at most #{max}"}
-  end
-
-  defp valid?(:max, value, :date, max) do
-    if Date.compare(value, max) in [:lt, :eq],
-      do: :ok,
-      else: {:error, "must be before or equal to #{max}"}
-  end
-
-  defp valid?(:max, value, :datetime, max) do
-    if DateTime.compare(value, max) in [:lt, :eq],
-      do: :ok,
-      else: {:error, "must be before or equal to #{max}"}
-  end
-
-  defp valid?(:max, value, :list, max) do
-    if length(value) <= max,
-      do: :ok,
-      else: {:error, "must be at most #{max} items long"}
-  end
-
-  # Min
+  ## min length
   defp valid?(:min, value, :string, min) do
     if String.length(value) >= min,
       do: :ok,
       else: {:error, "must be at least #{min} characters long"}
   end
 
+  ## max length
+  defp valid?(:max, value, :string, max) do
+    if String.length(value) <= max,
+      do: :ok,
+      else: {:error, "must be at most #{max} characters long"}
+  end
+
+  ## pattern
+  defp valid?(:pattern, value, :string, pattern) when is_binary(value) do
+    if value =~ pattern, do: :ok, else: {:error, "does not match pattern"}
+  end
+
+  defp valid?(:pattern, nil, :string, _pattern) do
+    {:error, "does not match pattern"}
+  end
+
+  ## starts with
+  defp valid?(:starts_with, value, :string, prefix) when is_binary(value) do
+    if String.starts_with?(value, prefix),
+      do: :ok,
+      else: {:error, "does not start with #{prefix}"}
+  end
+
+  defp valid?(:starts_with, nil, :string, prefix) do
+    {:error, "does not start with #{prefix}"}
+  end
+
+  ## ends with
+  defp valid?(:ends_with, value, :string, suffix) when is_binary(value) do
+    if String.ends_with?(value, suffix),
+      do: :ok,
+      else: {:error, "does not end with #{suffix}"}
+  end
+
+  defp valid?(:ends_with, nil, :string, suffix) do
+    {:error, "does not end with #{suffix}"}
+  end
+
+  ## contains
+  defp valid?(:contains, value, :string, substring) when is_binary(value) do
+    if String.contains?(value, substring),
+      do: :ok,
+      else: {:error, "must contain '#{substring}'"}
+  end
+
+  defp valid?(:contains, nil, :string, substring) do
+    {:error, "must contain '#{substring}'"}
+  end
+
+  ## exact length
+  defp valid?(:length, value, :string, length) when is_binary(value) do
+    if String.length(value) == length,
+      do: :ok,
+      else: {:error, "must be exactly #{length} characters long"}
+  end
+
+  defp valid?(:length, nil, :string, length) do
+    {:error, "must be exactly #{length} characters long"}
+  end
+
+  ## alphanumeric
+  defp valid?(:alphanumeric, value, :string, true) when is_binary(value) do
+    alphanumeric_regex = ~r/^[a-zA-Z0-9]+$/
+
+    if value =~ alphanumeric_regex,
+      do: :ok,
+      else: {:error, "must contain only letters and numbers"}
+  end
+
+  defp valid?(:alphanumeric, nil, :string, true) do
+    {:error, "must contain only letters and numbers"}
+  end
+
+  # NUMERIC VALIDATORS
+
+  ## Integer min value
   defp valid?(:min, value, :integer, min) do
     if value >= min, do: :ok, else: {:error, "must be at least #{min}"}
   end
 
+  ## Integer max value
+  defp valid?(:max, value, :integer, max) do
+    if value <= max, do: :ok, else: {:error, "must be at most #{max}"}
+  end
+
+  ## Float min value
   defp valid?(:min, value, :float, min) do
     if value >= min, do: :ok, else: {:error, "must be at least #{min}"}
   end
 
+  ## Float max value
+  defp valid?(:max, value, :float, max) do
+    if value <= max, do: :ok, else: {:error, "must be at most #{max}"}
+  end
+
+  ## Positive (integer/float)
+  defp valid?(:positive, value, type, true)
+       when type in [:integer, :float] and is_number(value) do
+    if value > 0, do: :ok, else: {:error, "must be positive"}
+  end
+
+  ## Negative (integer/float)
+  defp valid?(:negative, value, type, true)
+       when type in [:integer, :float] and is_number(value) do
+    if value < 0, do: :ok, else: {:error, "must be negative"}
+  end
+
+  # DATE/DATETIME VALIDATORS
+
+  ## min
   defp valid?(:min, value, :date, min) do
     if Date.compare(value, min) in [:gt, :eq],
       do: :ok,
@@ -244,44 +329,74 @@ defmodule Pex.Validator do
       else: {:error, "must be after or equal to #{min}"}
   end
 
+  ## max
+  defp valid?(:max, value, :date, max) do
+    if Date.compare(value, max) in [:lt, :eq],
+      do: :ok,
+      else: {:error, "must be before or equal to #{max}"}
+  end
+
+  defp valid?(:max, value, :datetime, max) do
+    if DateTime.compare(value, max) in [:lt, :eq],
+      do: :ok,
+      else: {:error, "must be before or equal to #{max}"}
+  end
+
+  # LIST VALIDATORS
+
+  ## min length
   defp valid?(:min, value, :list, min) do
     if length(value) >= min,
       do: :ok,
       else: {:error, "must be at least #{min} items long"}
   end
 
-  # Pattern
-  defp valid?(:pattern, value, :string, pattern) when is_binary(value) do
-    if value =~ pattern, do: :ok, else: {:error, "does not match pattern"}
-  end
-
-  defp valid?(:pattern, nil, :string, _pattern) do
-    {:error, "does not match pattern"}
-  end
-
-  # Starts with
-  defp valid?(:starts_with, value, :string, prefix) when is_binary(value) do
-    if String.starts_with?(value, prefix),
+  ## max length
+  defp valid?(:max, value, :list, max) do
+    if length(value) <= max,
       do: :ok,
-      else: {:error, "does not start with #{prefix}"}
+      else: {:error, "must be at most #{max} items long"}
   end
 
-  defp valid?(:starts_with, nil, :string, prefix) do
-    {:error, "does not start with #{prefix}"}
-  end
-
-  # Ends with
-  defp valid?(:ends_with, value, :string, suffix) when is_binary(value) do
-    if String.ends_with?(value, suffix),
+  ## exact length
+  defp valid?(:length, value, :list, length) when is_list(value) do
+    if length(value) == length,
       do: :ok,
-      else: {:error, "does not end with #{suffix}"}
+      else: {:error, "must be exactly #{length} items long"}
   end
 
-  defp valid?(:ends_with, nil, :string, suffix) do
-    {:error, "does not end with #{suffix}"}
+  ## unique values
+  defp valid?(:unique, value, :list, true) when is_list(value) do
+    if length(value) == length(Enum.uniq(value)),
+      do: :ok,
+      else: {:error, "must contain unique values"}
   end
 
-  # Custom
+  ## non-empty
+  defp valid?(:non_empty, value, :list, true) when is_list(value) do
+    if value != [], do: :ok, else: {:error, "must not be empty"}
+  end
+
+  ## in (all values must be in provided list)
+  defp valid?(:in, values, :list, list) do
+    if Enum.any?(values, &(&1 not in list)),
+      do: {:error, "invalid value in list"},
+      else: :ok
+  end
+
+  # GENERIC VALIDATORS
+
+  # in (value must be in provided list)
+  defp valid?(:in, value, _type, list) do
+    if value in list, do: :ok, else: {:error, "value not in list"}
+  end
+
+  # Not nil validation (different from required - allows empty strings)
+  defp valid?(:not_nil, value, _type, true) do
+    if value != nil, do: :ok, else: {:error, "must not be nil"}
+  end
+
+  # Custom validation function
   defp valid?(:validate, value, _type, valid_fn) when is_function(valid_fn, 1) do
     case valid_fn.(value) do
       :ok -> :ok
@@ -294,5 +409,7 @@ defmodule Pex.Validator do
   end
 
   defp valid?(opt, _value, _type, _check) when opt in [:required], do: :ok
-  defp valid?(op, _value, type, _check), do: raise("unsupported validation: #{op}, type: #{type}")
+
+  defp valid?(opt, _value, type, _check),
+    do: raise("unsupported validation: #{opt}, type: #{type}")
 end

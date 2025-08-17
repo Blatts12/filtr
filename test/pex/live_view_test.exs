@@ -209,8 +209,29 @@ defmodule Pex.LiveViewTest do
         }
 
         pex_params = Pex.run(schema, params, no_errors: false)
-        socket = assign(socket, :pex, pex_params)
+        socket = 
+          socket
+          |> assign(:pex, pex_params)
+          |> attach_hook(socket, :handle_params, &handle_pex_params/3)
         {:cont, socket}
+      end
+
+      # Mock the attach_hook function
+      def attach_hook(socket, _original_socket, _event, _function) do
+        # For testing, just return the socket
+        socket
+      end
+
+      # Mock handler for the hook
+      def handle_pex_params(params, _uri, socket) do
+        schema = %{
+          search: [type: :string, default: ""],
+          page: [type: :integer, default: 1, min: 1],
+          filter: [type: :string, default: "all"]
+        }
+        
+        pex_params = Pex.run(schema, params, no_errors: false)
+        {:cont, assign(socket, :pex, pex_params)}
       end
 
       # Mock the Phoenix.Component.assign function

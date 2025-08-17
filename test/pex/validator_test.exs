@@ -244,6 +244,16 @@ defmodule Pex.ValidatorTest do
       assert Validator.run(["a", "b", "c"], :list, max: 3) == {:ok, ["a", "b", "c"]}
     end
 
+    test "exact length validation" do
+      assert Validator.run(["a", "b", "c"], :list, length: 3) == {:ok, ["a", "b", "c"]}
+
+      assert Validator.run(["a", "b"], :list, length: 3) ==
+               {:error, ["must be exactly 3 items long"]}
+
+      assert Validator.run(["a", "b", "c", "d"], :list, length: 3) ==
+               {:error, ["must be exactly 3 items long"]}
+    end
+
     test "in validation" do
       assert Validator.run(["red", "yellow"], :list, in: ["red", "green"]) ==
                {:error, ["invalid value in list"]}
@@ -347,11 +357,134 @@ defmodule Pex.ValidatorTest do
     end
   end
 
+  describe "advanced string validations" do
+    test "contains validation" do
+      assert Validator.run("hello world", :string, contains: "world") == {:ok, "hello world"}
+
+      assert Validator.run("hello universe", :string, contains: "world") ==
+               {:error, ["must contain 'world'"]}
+    end
+
+    test "contains validation with nil value" do
+      assert Validator.run(nil, :string, contains: "test") ==
+               {:error, ["must contain 'test'"]}
+    end
+
+    test "length validation" do
+      assert Validator.run("hello", :string, length: 5) == {:ok, "hello"}
+
+      assert Validator.run("hi", :string, length: 5) ==
+               {:error, ["must be exactly 5 characters long"]}
+    end
+
+    test "length validation with nil value" do
+      assert Validator.run(nil, :string, length: 5) ==
+               {:error, ["must be exactly 5 characters long"]}
+    end
+
+    test "alphanumeric validation" do
+      assert Validator.run("hello123", :string, alphanumeric: true) == {:ok, "hello123"}
+
+      assert Validator.run("hello-world", :string, alphanumeric: true) ==
+               {:error, ["must contain only letters and numbers"]}
+    end
+
+    test "alphanumeric validation with nil value" do
+      assert Validator.run(nil, :string, alphanumeric: true) ==
+               {:error, ["must contain only letters and numbers"]}
+    end
+
+    test "pattern validation with nil value" do
+      assert Validator.run(nil, :string, pattern: ~r/@/) ==
+               {:error, ["does not match pattern"]}
+    end
+
+    test "starts_with validation with nil value" do
+      assert Validator.run(nil, :string, starts_with: "hello") ==
+               {:error, ["does not start with hello"]}
+    end
+
+    test "ends_with validation with nil value" do
+      assert Validator.run(nil, :string, ends_with: "world") ==
+               {:error, ["does not end with world"]}
+    end
+  end
+
+  describe "numeric validations" do
+    test "positive validation for integers" do
+      assert Validator.run(5, :integer, positive: true) == {:ok, 5}
+      assert Validator.run(-5, :integer, positive: true) == {:error, ["must be positive"]}
+      assert Validator.run(0, :integer, positive: true) == {:error, ["must be positive"]}
+    end
+
+    test "positive validation for floats" do
+      assert Validator.run(5.5, :float, positive: true) == {:ok, 5.5}
+      assert Validator.run(-5.5, :float, positive: true) == {:error, ["must be positive"]}
+      assert Validator.run(0.0, :float, positive: true) == {:error, ["must be positive"]}
+    end
+
+    test "negative validation for integers" do
+      assert Validator.run(-5, :integer, negative: true) == {:ok, -5}
+      assert Validator.run(5, :integer, negative: true) == {:error, ["must be negative"]}
+      assert Validator.run(0, :integer, negative: true) == {:error, ["must be negative"]}
+    end
+
+    test "negative validation for floats" do
+      assert Validator.run(-5.5, :float, negative: true) == {:ok, -5.5}
+      assert Validator.run(5.5, :float, negative: true) == {:error, ["must be negative"]}
+      assert Validator.run(0.0, :float, negative: true) == {:error, ["must be negative"]}
+    end
+  end
+
+  describe "list validations" do
+    test "unique validation" do
+      assert Validator.run([1, 2, 3], :list, unique: true) == {:ok, [1, 2, 3]}
+
+      assert Validator.run([1, 2, 2, 3], :list, unique: true) ==
+               {:error, ["must contain unique values"]}
+    end
+
+    test "non_empty validation" do
+      assert Validator.run([1, 2, 3], :list, non_empty: true) == {:ok, [1, 2, 3]}
+      assert Validator.run([], :list, non_empty: true) == {:error, ["must not be empty"]}
+    end
+  end
+
+  describe "not_nil validation" do
+    test "passes when value is not nil" do
+      assert Validator.run("hello", :string, not_nil: true) == {:ok, "hello"}
+      assert Validator.run("", :string, not_nil: true) == {:ok, ""}
+      assert Validator.run(0, :integer, not_nil: true) == {:ok, 0}
+    end
+
+    test "fails when value is nil" do
+      assert Validator.run(nil, :string, not_nil: true) == {:error, ["must not be nil"]}
+      assert Validator.run(nil, :integer, not_nil: true) == {:error, ["must not be nil"]}
+    end
+  end
+
+  describe "validation for nil values" do
+    test "handles nil values in validations properly" do
+      assert Validator.run(nil, :string, []) == {:ok, nil}
+      assert Validator.run(nil, :integer, []) == {:ok, nil}
+      assert Validator.run(nil, :float, []) == {:ok, nil}
+      assert Validator.run(nil, :date, []) == {:ok, nil}
+      assert Validator.run(nil, :datetime, []) == {:ok, nil}
+      assert Validator.run(nil, :list, []) == {:ok, nil}
+    end
+  end
+
   describe "unsupported validation error" do
     test "filters out unsupported validation options" do
       # The validator should filter out unsupported options and not raise
       # Test that it works correctly by providing an unsupported option
       result = Validator.run("test", :string, unsupported_for_string: true)
+      assert result == {:ok, "test"}
+    end
+
+    test "validates __none__ type with no validation options" do
+      # Test that __none__ type works correctly with empty validation options
+      result = Validator.run("test", :__none__, [])
       assert result == {:ok, "test"}
     end
   end

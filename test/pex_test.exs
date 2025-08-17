@@ -289,4 +289,153 @@ defmodule PexTest do
       assert result == %{email: "john@example.com"}
     end
   end
+
+  describe "error handling edge cases" do
+    test "handles multiple validation failures correctly" do
+      schema = %{name: [type: :string, required: true, min: 10]}
+      params = %{}
+
+      result = Pex.run(schema, params)
+      # Should return error tuple in the map (current implementation behavior)
+      assert Map.has_key?(result, :error)
+      error_value = Map.get(result, :error)
+      assert is_list(error_value)
+      assert "required" in error_value
+    end
+
+    test "handles deeply nested schemas" do
+      schema = %{
+        user: %{
+          profile: %{
+            name: [type: :string, required: true],
+            age: [type: :integer, min: 18]
+          }
+        }
+      }
+
+      params = %{
+        "user" => %{
+          "profile" => %{
+            "name" => "John",
+            "age" => "25"
+          }
+        }
+      }
+
+      result = Pex.run(schema, params)
+
+      expected = %{
+        user: %{
+          profile: %{
+            name: "John",
+            age: 25
+          }
+        }
+      }
+
+      assert result == expected
+    end
+
+    test "handles nested schema with missing nested params" do
+      schema = %{
+        user: %{
+          name: [type: :string, default: "Anonymous"],
+          age: [type: :integer, default: 0]
+        }
+      }
+
+      params = %{"user" => %{}}
+
+      result = Pex.run(schema, params)
+
+      expected = %{
+        user: %{
+          name: "Anonymous",
+          age: 0
+        }
+      }
+
+      assert result == expected
+    end
+
+    test "handles empty nested params" do
+      schema = %{user: %{name: [type: :string, default: "Anonymous"]}}
+
+      params = %{"user" => %{}}
+
+      result = Pex.run(schema, params)
+      expected = %{user: %{name: "Anonymous"}}
+      assert result == expected
+    end
+  end
+
+  describe "comprehensive error handling with no_errors" do
+    test "multiple errors with no_errors returns defaults" do
+      schema = %{
+        name: [type: :string, required: true, min: 10, default: "Default"],
+        age: [type: :integer, min: 21, default: 18],
+        score: [type: :float, default: 0.0]
+      }
+
+      params = %{"age" => "invalid", "score" => "bad"}
+
+      result = Pex.run(schema, params, no_errors: true)
+      assert result == %{name: "Default", age: 18, score: 0.0}
+    end
+
+    test "nested schema errors with no_errors" do
+      schema = %{
+        user: %{
+          name: [type: :string, required: true, default: "Anonymous"],
+          age: [type: :integer, default: 0]
+        }
+      }
+
+      params = %{"user" => %{"age" => "invalid"}}
+
+      result = Pex.run(schema, params, no_errors: true)
+
+      expected = %{
+        user: %{
+          name: "Anonymous",
+          age: 0
+        }
+      }
+
+      assert result == expected
+    end
+  end
+
+  describe "function defaults with error scenarios" do
+    test "function defaults work correctly during errors" do
+      counter_fn = fn -> System.system_time(:millisecond) end
+
+      schema = %{
+        id: [type: :integer, default: counter_fn],
+        name: [type: :string, required: true, default: "Default"]
+      }
+
+      params = %{"id" => "invalid"}
+
+      result = Pex.run(schema, params, no_errors: true)
+      assert is_integer(result.id)
+      assert result.name == "Default"
+    end
+
+    test "2-arity function default during error" do
+      key_params_fn = fn key, params ->
+        prefix = Map.get(params, "prefix", "default")
+        "#{prefix}_#{key}"
+      end
+
+      schema = %{
+        generated: [type: :string, default: key_params_fn]
+      }
+
+      params = %{"generated" => 123, "prefix" => "test"}
+
+      result = Pex.run(schema, params, no_errors: true)
+      assert result.generated == "test_generated"
+    end
+  end
 end
