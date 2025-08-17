@@ -61,7 +61,7 @@ defmodule Pex.Validator do
   used directly for custom validation scenarios.
   """
 
-  @common_opts [:validate]
+  @common_opts [:validate, :required]
   @string_opts [:min, :max, :in, :pattern, :starts_with, :ends_with]
   @integer_opts [:min, :max, :in]
   @float_opts [:min, :max, :in]
@@ -250,22 +250,34 @@ defmodule Pex.Validator do
   end
 
   # Pattern
-  defp valid?(:pattern, value, :string, pattern) do
+  defp valid?(:pattern, value, :string, pattern) when is_binary(value) do
     if value =~ pattern, do: :ok, else: {:error, "does not match pattern"}
   end
 
+  defp valid?(:pattern, nil, :string, _pattern) do
+    {:error, "does not match pattern"}
+  end
+
   # Starts with
-  defp valid?(:starts_with, value, :string, prefix) do
+  defp valid?(:starts_with, value, :string, prefix) when is_binary(value) do
     if String.starts_with?(value, prefix),
       do: :ok,
       else: {:error, "does not start with #{prefix}"}
   end
 
+  defp valid?(:starts_with, nil, :string, prefix) do
+    {:error, "does not start with #{prefix}"}
+  end
+
   # Ends with
-  defp valid?(:ends_with, value, :string, suffix) do
+  defp valid?(:ends_with, value, :string, suffix) when is_binary(value) do
     if String.ends_with?(value, suffix),
       do: :ok,
       else: {:error, "does not end with #{suffix}"}
+  end
+
+  defp valid?(:ends_with, nil, :string, suffix) do
+    {:error, "does not end with #{suffix}"}
   end
 
   # Custom
