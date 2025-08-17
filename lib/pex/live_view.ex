@@ -1,118 +1,63 @@
 defmodule Pex.LiveView do
+  @moduledoc false
+
   alias Phoenix.LiveView.Socket
   alias Phoenix.Component
 
-  defmacro __using__(_opts) do
+  defmacro __using__(opts) do
+    schema = Keyword.get(opts, :schema) || raise "schema is required"
+    no_errors? = Keyword.get(opts, :no_errors, false)
+
     quote do
       import Pex.LiveView
 
-      # @query_params_schema unquote(schema)
-      @query_params_schema %{}
-      @query_params_schema_keys Map.keys(@query_params_schema)
+      @pex_schema unquote(schema)
 
-      @spec on_mount(:query_params, map(), map(), Socket.t()) :: {:cont, Socket.t()}
-      def on_mount(:query_params, params, _session, socket) do
-        params = cast_params(params, @query_params_schema)
+      @spec on_mount(:pex_params, map(), map(), Socket.t()) :: {:cont, Socket.t()}
+      def on_mount(:pex_params, params, _session, socket) do
+        pex_params = Pex.run(@pex_schema, params, no_errors: unquote(no_errors?))
 
         socket =
           socket
-          |> assign(params)
-          |> attach_hook(socket, :handle_params, &handle_query_params/3)
+          |> assign(pex: pex_params)
+          |> attach_hook(socket, :handle_params, &handle_pex_params/3)
 
         {:cont, socket}
       end
 
-      on_mount({__MODULE__, :query_params})
+      on_mount({__MODULE__, :pex_params})
 
-      defp handle_query_params(params, _uri, socket) do
-        params = cast_params(socket, params, @query_params_schema)
-        {:cont, Component.assign(socket, params)}
-      end
-
-      defp params(%{assigns: assigns}), do: Map.take(assigns, @query_params_schema_keys)
-      defp params(assigns), do: Map.take(assigns, @query_params_schema_keys)
-
-      defp put_param(assigns, key, value) do
-        params = params(assigns)
-        Map.put(params, key, value)
-      end
-
-      defp delete_param(assigns, key) do
-        params = params(assigns)
-        Map.delete(params, key)
-      end
-
-      defp drop_params(assigns, keys) do
-        params = params(assigns)
-        Map.drop(params, keys)
-      end
-
-      defp update_param(assigns, key, default, update_fn) do
-        params = params(assigns)
-        Map.update(params, key, default, update_fn)
+      defp handle_pex_params(params, _uri, socket) do
+        pex_params = Pex.run(@pex_schema, params, no_errors: unquote(no_errors?))
+        {:cont, Component.assign(socket, pex: pex_params)}
       end
     end
   end
 
-  @spec cast_params(socket :: map(), params :: map(), schema :: map()) :: map()
-  def cast_params(%{assigns: assigns}, params, schema) do
-    Map.new(schema, fn {key, type} ->
-      default = type[:default]
-      cast_fn = type[:cast_fn]
-      value = assigns |> get_value(params, key) |> cast_value(cast_fn)
-      type = Keyword.put(type, :required, true)
+  defp params(%{assigns: assigns}), do: Map.get_lazy(assigns, :pex, &Pex.empty_pex_params/0)
+  defp params(assigns), do: Map.get_lazy(assigns, :pex, &Pex.empty_pex_params/0)
 
-      case Valdi.validate(value, type) do
-        :ok -> {key, value}
-        {:error, _} -> {key, if(is_function(default), do: default.(), else: default)}
-      end
-    end)
+  @spec put_param(Socket.t() | map(), atom(), any()) :: Pex.pex_params()
+  def put_param(assigns, key, value) do
+    params = params(assigns)
+    Map.put(params, key, value)
   end
 
-  @spec cast_params(params :: map(), schema :: map()) :: map()
-  def cast_params(params, schema) do
-    params = Map.new(params, fn {k, v} -> {to_string(k), v} end)
-
-    Map.new(schema, fn {key, type} ->
-      default = type[:default]
-      cast_fn = type[:cast_fn]
-      value = cast_value(params[to_string(key)], cast_fn)
-
-      case Valdi.validate(value, type) do
-        :ok -> {key, if(is_nil(value), do: handle_default(default), else: value)}
-        {:error, _} -> {key, handle_default(default)}
-      end
-    end)
+  @spec delete_param(Socket.t() | map(), atom()) :: Pex.pex_params()
+  def delete_param(assigns, key) do
+    params = params(assigns)
+    Map.delete(params, key)
   end
 
-  defp get_value(assigns, params, key) do
-    case Map.get(params, to_string(key)) do
-      nil -> Map.get(assigns, key)
-      value -> value
-    end
+  @spec drop_params(Socket.t() | map(), [atom()]) :: Pex.pex_params()
+  def drop_params(assigns, keys) do
+    params = params(assigns)
+    Map.drop(params, keys)
   end
 
-  defp cast_value(value, cast_fn) when is_function(cast_fn, 1) do
-    case cast_fn.(value) do
-      {:ok, value} -> value
-      {:error, _error} -> nil
-      :error -> nil
-      value -> value
-    end
+  @spec update_param(Socket.t() | map(), atom(), any(), (any() -> any())) :: Pex.pex_params()
+  def update_param(assigns, key, default, update_fn) do
+    params = params(assigns)
+    Map.update(params, key, default, update_fn)
   end
-
-  defp cast_value(value, _), do: value
-
-  defp handle_default(default) when is_function(default, 0), do: default.()
-  defp handle_default(default), do: default
-
-  @spec cast_date(any()) :: {:ok, Date.t()} | {:error, binary() | atom()}
-  def cast_date(nil), do: {:error, :required}
-  def cast_date(%Date{} = date), do: {:ok, date}
-  def cast_date(date), do: Date.from_iso8601(date)
-
-  @spec cast_datetime(any()) :: {:ok, DateTime.t()} | {:error, binary() | atom()}
-  def cast_datetime(nil), do: {:error, :required}
-  def cast_datetime(%DateTime{} = datetime), do: {:ok, datetime}
-  def cast_datetime(datetime), do: DateTime.from_iso8601(datetime)
 end

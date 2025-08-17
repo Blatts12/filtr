@@ -1,17 +1,7 @@
 defmodule Pex.Validator do
-  @type supported_types ::
-          :string
-          | :integer
-          | :float
-          | :boolean
-          | :date
-          | :datetime
-          | :list
-          | {:list, supported_types()}
-          | map()
-          | nil
+  @moduledoc false
 
-  @common_opts [:required, :cast, :validate]
+  @common_opts [:validate]
   @string_opts [:min, :max, :in, :pattern, :starts_with, :ends_with]
   @integer_opts [:min, :max, :in]
   @float_opts [:min, :max, :in]
@@ -27,40 +17,19 @@ defmodule Pex.Validator do
     date: @date_opts,
     datetime: @datetime_opts,
     list: @list_opts,
-    none: @none_opts
+    __none__: @none_opts
   }
 
-  @spec run(map(), map()) :: keyword()
-  def run(params, schema) do
-    Keyword.new(schema, fn
-      {key, map} when is_map(map) ->
-        values = get_value(params, key)
-        {key, run(values, map)}
-
-      {key, opts} ->
-        {type, opts} = Keyword.pop(opts, :type, :none)
-        opts = Keyword.take(opts, @supported_opts[type] ++ @common_opts)
-        value = get_value(params, key)
-
-        case validate(value, type, opts) do
-          {:ok, casted_value} -> {key, casted_value}
-          error -> {key, error}
-        end
-    end)
-  end
-
-  @spec validate(any(), supported_types()) :: {:ok, any()} | {:error, [binary()]}
-  @spec validate(any(), supported_types(), keyword()) :: {:ok, any()} | {:error, [binary()]}
-  def validate(value, type, opts \\ []) do
-    cast_fn = opts[:cast] || (&cast/2)
+  @spec run(value :: any(), type :: Pex.supported_types()) ::
+          {:ok, any()} | {:error, [binary()] | binary()}
+  @spec run(value :: any(), type :: Pex.supported_types(), opts :: keyword()) ::
+          {:ok, any()} | {:error, [binary()] | binary()}
+  def run(value, type, opts \\ []) do
+    opts = Keyword.take(opts, Map.get(@supported_opts, type, []) ++ @common_opts)
 
     with :ok <- check_required(value, opts),
-         {:ok, casted_value} <- cast_value(value, type, cast_fn),
-         :ok <- valid_value(casted_value, type, opts) do
-      {:ok, casted_value}
-    else
-      {:error, error} when is_binary(error) -> {:error, [error]}
-      {:error, errors} -> {:error, errors}
+         :ok <- valid_value(value, type, opts) do
+      {:ok, value}
     end
   end
 
@@ -70,98 +39,6 @@ defmodule Pex.Validator do
       _ -> :ok
     end
   end
-
-  defp cast_value(value, type, cast_fn) when is_function(cast_fn, 2), do: cast_fn.(value, type)
-  defp cast_value(value, _type, cast_fn) when is_function(cast_fn, 1), do: cast_fn.(value)
-
-  # String
-  defp cast(value, :string) when is_binary(value), do: {:ok, value}
-  defp cast(_value, :string), do: {:error, "invalid string"}
-
-  # Integer
-  defp cast(value, :integer) when is_integer(value), do: {:ok, value}
-
-  defp cast(value, :integer) do
-    case Integer.parse(value) do
-      {int, _} -> {:ok, int}
-      _ -> {:error, "invalid integer"}
-    end
-  end
-
-  # Float
-  defp cast(value, :float) when is_float(value), do: {:ok, value}
-
-  defp cast(value, :float) do
-    case Float.parse(value) do
-      {float, _} -> {:ok, float}
-      _ -> {:error, "invalid float"}
-    end
-  end
-
-  # Boolean
-  defp cast(value, :boolean) when is_boolean(value), do: {:ok, value}
-
-  defp cast(value, :boolean) do
-    case String.downcase(value) do
-      v when v in ["true", "1", "yes"] -> {:ok, true}
-      v when v in ["false", "0", "no"] -> {:ok, false}
-      _ -> {:error, "invalid boolean"}
-    end
-  end
-
-  # Date
-  defp cast(%Date{} = date, :date), do: {:ok, date}
-
-  defp cast(value, :date) do
-    case Date.from_iso8601(value) do
-      {:ok, date} -> {:ok, date}
-      _ -> {:error, "invalid date"}
-    end
-  end
-
-  # Datetime
-  defp cast(%DateTime{} = datetime, :datetime), do: {:ok, datetime}
-
-  defp cast(value, :datetime) do
-    case DateTime.from_iso8601(value) do
-      {:ok, datetime, _} -> {:ok, datetime}
-      _ -> {:error, "invalid datetime"}
-    end
-  end
-
-  # List
-  defp cast(value, :list) when is_binary(value),
-    do: cast(String.split(value, ",", trim: true), :list)
-
-  defp cast(values, :list) when is_list(values), do: {:ok, values}
-  defp cast(_value, :list), do: {:error, "invalid list"}
-
-  # List with type
-  defp cast(value, {:list, type}) when is_list(value) do
-    results = Enum.map(value, &cast(&1, type))
-
-    errors =
-      Enum.filter(results, &match?({:error, _}, &1))
-      |> Enum.map(&elem(&1, 1))
-      |> Enum.uniq()
-
-    if errors == [],
-      do: {:ok, Enum.map(results, &elem(&1, 1))},
-      else: {:error, errors}
-  end
-
-  defp cast(value, {:list, type}) when is_binary(value) do
-    values = String.split(value, ",", trim: true)
-    cast(values, {:list, type})
-  end
-
-  defp cast(_value, {:list, _type}), do: {:error, "invalid list"}
-
-  # Custom
-  defp cast(value, cast_fn) when is_function(cast_fn, 1), do: cast_fn.(value)
-  defp cast(value, :none), do: {:ok, value}
-  defp cast(value, nil), do: {:ok, value}
-  defp cast(_value, _type), do: {:error, "unsupported type"}
 
   defp valid_value(value, type, opts) do
     errors =
@@ -281,10 +158,6 @@ defmodule Pex.Validator do
     end
   end
 
-  # Skip validation options that are not actual validations
-  defp valid?(opt, _value, _type, _check) when opt in [:cast, :type, :required], do: :ok
-
+  defp valid?(opt, _value, _type, _check) when opt in [:required], do: :ok
   defp valid?(op, _value, type, _check), do: raise("unsupported validation: #{op}, type: #{type}")
-
-  defp get_value(params, key), do: Map.get(params, to_string(key)) || Map.get(params, key)
 end
