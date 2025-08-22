@@ -267,31 +267,30 @@ defmodule MyAppWeb.SearchController do
 end
 ```
 
-### LiveView Parameter Management
+### LiveView with No-Error Mode
 
-Pex provides helper functions for LiveView parameter management:
+For graceful parameter handling in LiveViews:
 
 ```elixir
 defmodule MyAppWeb.SearchLive do
   use MyAppWeb, :live_view
-  use Pex.LiveView, schema: %{
-    search: [type: :string, default: ""],
-    filters: [type: {:list, :string}, default: []]
-  }
+  use Pex.LiveView,
+    schema: %{
+      search: [type: :string, default: ""],
+      page: [type: :integer, default: 1, min: 1],
+      filters: [type: {:list, :string}, default: []]
+    },
+    no_errors: true
 
-  def handle_event("change_view", %{"view" => view}, socket) do
-    params = put_param(socket, :view, view)
-    {:noreply, push_patch(socket, to: ~p"/search?#{params}")}
+  def handle_params(_params, _uri, socket) do
+    # All parameters are guaranteed to have valid values
+    search_results = perform_search(socket.assigns.pex)
+    {:noreply, assign(socket, results: search_results)}
   end
 
-  def handle_event("change_filters", %{"filters" => filters}, socket) do
-    params = put_param(socket, :filters, filters)
-    {:noreply, push_patch(socket, to: ~p"/search?#{params}")}
-  end
-
-  def handle_event("next_page", _params_, socket) do
-    params = update_param(socket, :page, 1, &(&1 + 1))
-    {:noreply, push_patch(socket, to: ~p"/search?#{params}")}
+  defp perform_search(params) do
+    # params.search, params.page, and params.filters are all validated
+    MyApp.Search.query(params)
   end
 end
 ```

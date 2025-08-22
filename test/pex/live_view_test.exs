@@ -2,197 +2,11 @@ defmodule Pex.LiveViewTest do
   use ExUnit.Case
   doctest Pex.LiveView
 
-  alias Pex.LiveView
-
   # Mock socket structure for testing
   defp mock_socket(assigns) do
     %{assigns: assigns}
   end
 
-  describe "put_param/3" do
-    test "adds new parameter to empty pex params" do
-      socket = mock_socket(%{pex: %{}})
-      result = LiveView.put_param(socket.assigns, :name, "John")
-
-      assert result == %{name: "John"}
-    end
-
-    test "adds new parameter to existing pex params" do
-      socket = mock_socket(%{pex: %{age: 25}})
-      result = LiveView.put_param(socket.assigns, :name, "John")
-
-      assert result == %{age: 25, name: "John"}
-    end
-
-    test "updates existing parameter" do
-      socket = mock_socket(%{pex: %{name: "Jane", age: 30}})
-      result = LiveView.put_param(socket.assigns, :name, "John")
-
-      assert result == %{name: "John", age: 30}
-    end
-
-    test "works with socket struct directly" do
-      socket = mock_socket(%{pex: %{age: 25}})
-      result = LiveView.put_param(socket, :name, "John")
-
-      assert result == %{age: 25, name: "John"}
-    end
-
-    test "handles missing pex assigns by using empty params" do
-      socket = mock_socket(%{other: "data"})
-      result = LiveView.put_param(socket.assigns, :name, "John")
-
-      assert result == %{name: "John"}
-    end
-
-    test "works with plain assigns map" do
-      assigns = %{pex: %{existing: "value"}}
-      result = LiveView.put_param(assigns, :new_key, "new_value")
-
-      assert result == %{existing: "value", new_key: "new_value"}
-    end
-  end
-
-  describe "delete_param/2" do
-    test "removes existing parameter" do
-      socket = mock_socket(%{pex: %{name: "John", age: 25, city: "NYC"}})
-      result = LiveView.delete_param(socket.assigns, :age)
-
-      assert result == %{name: "John", city: "NYC"}
-    end
-
-    test "handles non-existent parameter gracefully" do
-      socket = mock_socket(%{pex: %{name: "John", age: 25}})
-      result = LiveView.delete_param(socket.assigns, :city)
-
-      assert result == %{name: "John", age: 25}
-    end
-
-    test "works with empty pex params" do
-      socket = mock_socket(%{pex: %{}})
-      result = LiveView.delete_param(socket.assigns, :name)
-
-      assert result == %{}
-    end
-
-    test "handles missing pex assigns" do
-      socket = mock_socket(%{other: "data"})
-      result = LiveView.delete_param(socket.assigns, :name)
-
-      assert result == %{}
-    end
-
-    test "works with socket struct directly" do
-      socket = mock_socket(%{pex: %{name: "John", age: 25}})
-      result = LiveView.delete_param(socket, :age)
-
-      assert result == %{name: "John"}
-    end
-  end
-
-  describe "drop_params/2" do
-    test "removes multiple existing parameters" do
-      socket = mock_socket(%{pex: %{name: "John", age: 25, city: "NYC", country: "USA"}})
-      result = LiveView.drop_params(socket.assigns, [:age, :country])
-
-      assert result == %{name: "John", city: "NYC"}
-    end
-
-    test "handles mix of existing and non-existent parameters" do
-      socket = mock_socket(%{pex: %{name: "John", age: 25}})
-      result = LiveView.drop_params(socket.assigns, [:age, :city, :country])
-
-      assert result == %{name: "John"}
-    end
-
-    test "works with empty parameter list" do
-      socket = mock_socket(%{pex: %{name: "John", age: 25}})
-      result = LiveView.drop_params(socket.assigns, [])
-
-      assert result == %{name: "John", age: 25}
-    end
-
-    test "handles empty pex params" do
-      socket = mock_socket(%{pex: %{}})
-      result = LiveView.drop_params(socket.assigns, [:name, :age])
-
-      assert result == %{}
-    end
-
-    test "handles missing pex assigns" do
-      socket = mock_socket(%{other: "data"})
-      result = LiveView.drop_params(socket.assigns, [:name, :age])
-
-      assert result == %{}
-    end
-
-    test "works with socket struct directly" do
-      socket = mock_socket(%{pex: %{name: "John", age: 25, city: "NYC"}})
-      result = LiveView.drop_params(socket, [:age, :city])
-
-      assert result == %{name: "John"}
-    end
-  end
-
-  describe "update_param/4" do
-    test "updates existing parameter with function" do
-      socket = mock_socket(%{pex: %{count: 5, name: "John"}})
-      result = LiveView.update_param(socket.assigns, :count, 0, &(&1 + 1))
-
-      assert result == %{count: 6, name: "John"}
-    end
-
-    test "uses default value for non-existent parameter" do
-      socket = mock_socket(%{pex: %{name: "John"}})
-      result = LiveView.update_param(socket.assigns, :count, 10, &(&1 + 1))
-
-      assert result == %{name: "John", count: 10}
-    end
-
-    test "works with more complex update functions" do
-      socket = mock_socket(%{pex: %{tags: ["elixir", "phoenix"]}})
-      add_tag = fn tags -> ["web" | tags] end
-      result = LiveView.update_param(socket.assigns, :tags, [], add_tag)
-
-      assert result == %{tags: ["web", "elixir", "phoenix"]}
-    end
-
-    test "handles boolean toggle" do
-      socket = mock_socket(%{pex: %{enabled: true, name: "John"}})
-      result = LiveView.update_param(socket.assigns, :enabled, false, &(!&1))
-
-      assert result == %{enabled: false, name: "John"}
-    end
-
-    test "uses default for missing parameter with complex function" do
-      socket = mock_socket(%{pex: %{name: "John"}})
-      multiply_by_2 = fn value -> value * 2 end
-      result = LiveView.update_param(socket.assigns, :score, 50, multiply_by_2)
-
-      assert result == %{name: "John", score: 50}
-    end
-
-    test "handles empty pex params" do
-      socket = mock_socket(%{pex: %{}})
-      result = LiveView.update_param(socket.assigns, :count, 1, &(&1 + 1))
-
-      assert result == %{count: 1}
-    end
-
-    test "handles missing pex assigns" do
-      socket = mock_socket(%{other: "data"})
-      result = LiveView.update_param(socket.assigns, :count, 5, &(&1 * 2))
-
-      assert result == %{count: 5}
-    end
-
-    test "works with socket struct directly" do
-      socket = mock_socket(%{pex: %{count: 10}})
-      result = LiveView.update_param(socket, :count, 0, &(&1 - 3))
-
-      assert result == %{count: 7}
-    end
-  end
 
   describe "__using__ macro functionality" do
     # Test the actual macro functionality with a test LiveView module
@@ -209,10 +23,12 @@ defmodule Pex.LiveViewTest do
         }
 
         pex_params = Pex.run(schema, params, no_errors: false)
-        socket = 
+
+        socket =
           socket
           |> assign(:pex, pex_params)
           |> attach_hook(socket, :handle_params, &handle_pex_params/3)
+
         {:cont, socket}
       end
 
@@ -229,7 +45,7 @@ defmodule Pex.LiveViewTest do
           page: [type: :integer, default: 1, min: 1],
           filter: [type: :string, default: "all"]
         }
-        
+
         pex_params = Pex.run(schema, params, no_errors: false)
         {:cont, assign(socket, :pex, pex_params)}
       end
@@ -396,48 +212,4 @@ defmodule Pex.LiveViewTest do
     end
   end
 
-  describe "helper function edge cases" do
-    test "put_param handles nil assigns gracefully" do
-      # This tests the fallback to empty_pex_params
-      assigns = %{}
-      result = LiveView.put_param(assigns, :key, "value")
-
-      assert result == %{key: "value"}
-    end
-
-    test "all helper functions work consistently with different assign structures" do
-      # Test various assign structures
-      assigns_with_pex = %{pex: %{existing: "value"}}
-      assigns_without_pex = %{other: "data"}
-      assigns_empty = %{}
-
-      # Test put_param
-      assert LiveView.put_param(assigns_with_pex, :new, "test") == %{
-               existing: "value",
-               new: "test"
-             }
-
-      assert LiveView.put_param(assigns_without_pex, :new, "test") == %{new: "test"}
-      assert LiveView.put_param(assigns_empty, :new, "test") == %{new: "test"}
-
-      # Test delete_param
-      assert LiveView.delete_param(assigns_with_pex, :existing) == %{}
-      assert LiveView.delete_param(assigns_without_pex, :nonexistent) == %{}
-      assert LiveView.delete_param(assigns_empty, :nonexistent) == %{}
-
-      # Test drop_params
-      assert LiveView.drop_params(assigns_with_pex, [:existing]) == %{}
-      assert LiveView.drop_params(assigns_without_pex, [:nonexistent]) == %{}
-      assert LiveView.drop_params(assigns_empty, [:nonexistent]) == %{}
-
-      # Test update_param
-      assert LiveView.update_param(assigns_with_pex, :new, 1, &(&1 + 1)) == %{
-               existing: "value",
-               new: 1
-             }
-
-      assert LiveView.update_param(assigns_without_pex, :new, 1, &(&1 + 1)) == %{new: 1}
-      assert LiveView.update_param(assigns_empty, :new, 1, &(&1 + 1)) == %{new: 1}
-    end
-  end
 end
