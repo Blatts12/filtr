@@ -101,8 +101,8 @@ defmodule PexTest do
     end
   end
 
-  describe "run/3 with no_errors option" do
-    test "returns defaults on validation failure when no_errors: true" do
+  describe "run/3 with error_mode option" do
+    test "returns defaults on validation failure when error_mode: :fallback" do
       schema = %{
         name: [type: :string, required: true, default: "Anonymous"],
         age: [type: :integer, default: 0]
@@ -110,11 +110,11 @@ defmodule PexTest do
 
       params = %{}
 
-      result = Pex.run(schema, params, no_errors: true)
+      result = Pex.run(schema, params, error_mode: :fallback)
       assert result == %{name: "Anonymous", age: 0}
     end
 
-    test "returns defaults on casting failure when no_errors: true" do
+    test "returns defaults on casting failure when error_mode: :fallback" do
       schema = %{
         age: [type: :integer, default: 18],
         score: [type: :float, default: 0.0]
@@ -122,19 +122,19 @@ defmodule PexTest do
 
       params = %{"age" => "not_a_number", "score" => "invalid"}
 
-      result = Pex.run(schema, params, no_errors: true)
+      result = Pex.run(schema, params, error_mode: :fallback)
       assert result == %{age: 18, score: 0.0}
     end
 
-    test "returns nil for missing defaults when no_errors: true" do
+    test "returns nil for missing defaults when error_mode: :fallback" do
       schema = %{name: [type: :string, required: true]}
       params = %{}
 
-      result = Pex.run(schema, params, no_errors: true)
+      result = Pex.run(schema, params, error_mode: :fallback)
       assert result == %{name: nil}
     end
 
-    test "processes valid parameters normally when no_errors: true" do
+    test "processes valid parameters normally when error_mode: :fallback" do
       schema = %{
         name: [type: :string],
         age: [type: :integer]
@@ -142,8 +142,59 @@ defmodule PexTest do
 
       params = %{"name" => "John", "age" => "25"}
 
-      result = Pex.run(schema, params, no_errors: true)
+      result = Pex.run(schema, params, error_mode: :fallback)
       assert result == %{name: "John", age: 25}
+    end
+
+    test "raises ArgumentError on validation failure when error_mode: :raise" do
+      schema = %{
+        name: [type: :string, required: true],
+        age: [type: :integer, min: 18]
+      }
+
+      params = %{}
+
+      assert_raise ArgumentError, ~r/Validation failed/, fn ->
+        Pex.run(schema, params, error_mode: :raise)
+      end
+    end
+
+    test "raises ArgumentError on casting failure when error_mode: :raise" do
+      schema = %{age: [type: :integer]}
+      params = %{"age" => "not_a_number"}
+
+      assert_raise ArgumentError, ~r/Validation failed/, fn ->
+        Pex.run(schema, params, error_mode: :raise)
+      end
+    end
+
+    test "calls custom halt function when error_mode is function" do
+      halt_fn = fn errors -> {:custom_error, errors} end
+      
+      schema = %{name: [type: :string, required: true]}
+      params = %{}
+
+      result = Pex.run(schema, params, error_mode: halt_fn)
+      assert {:custom_error, _errors} = result
+    end
+
+    test "returns strict error tuples when error_mode: :strict (default)" do
+      schema = %{name: [type: :string, required: true]}
+      params = %{}
+
+      result = Pex.run(schema, params, error_mode: :strict)
+      # Current implementation behavior - error gets included in the result map
+      assert Map.has_key?(result, :error)
+    end
+
+    test "error_mode defaults to :strict when not specified" do
+      schema = %{name: [type: :string, required: true]}
+      params = %{}
+
+      result_default = Pex.run(schema, params)
+      result_explicit = Pex.run(schema, params, error_mode: :strict)
+      
+      assert result_default == result_explicit
     end
   end
 
@@ -369,8 +420,8 @@ defmodule PexTest do
     end
   end
 
-  describe "comprehensive error handling with no_errors" do
-    test "multiple errors with no_errors returns defaults" do
+  describe "comprehensive error handling with error_mode" do
+    test "multiple errors with error_mode: :fallback returns defaults" do
       schema = %{
         name: [type: :string, required: true, min: 10, default: "Default"],
         age: [type: :integer, min: 21, default: 18],
@@ -379,11 +430,11 @@ defmodule PexTest do
 
       params = %{"age" => "invalid", "score" => "bad"}
 
-      result = Pex.run(schema, params, no_errors: true)
+      result = Pex.run(schema, params, error_mode: :fallback)
       assert result == %{name: "Default", age: 18, score: 0.0}
     end
 
-    test "nested schema errors with no_errors" do
+    test "nested schema errors with error_mode: :fallback" do
       schema = %{
         user: %{
           name: [type: :string, required: true, default: "Anonymous"],
@@ -393,7 +444,7 @@ defmodule PexTest do
 
       params = %{"user" => %{"age" => "invalid"}}
 
-      result = Pex.run(schema, params, no_errors: true)
+      result = Pex.run(schema, params, error_mode: :fallback)
 
       expected = %{
         user: %{
@@ -417,7 +468,7 @@ defmodule PexTest do
 
       params = %{"id" => "invalid"}
 
-      result = Pex.run(schema, params, no_errors: true)
+      result = Pex.run(schema, params, error_mode: :fallback)
       assert is_integer(result.id)
       assert result.name == "Default"
     end
@@ -434,7 +485,7 @@ defmodule PexTest do
 
       params = %{"generated" => 123, "prefix" => "test"}
 
-      result = Pex.run(schema, params, no_errors: true)
+      result = Pex.run(schema, params, error_mode: :fallback)
       assert result.generated == "test_generated"
     end
   end

@@ -28,14 +28,14 @@ defmodule Pex.Decorator do
   ## Decorator Options
 
   - `:schema` - The parameter schema definition (required)
-  - `:no_errors` - When true, uses graceful fallback instead of raising errors
+  - `:error_mode` - Controls error handling behavior (`:strict`, `:fallback`, `:raise`, or `function`)
 
   ## Error Handling
 
-  By default, the decorator will raise an error if parameter validation fails.
-  Use `:no_errors` option to enable graceful fallback to default values:
+  By default, the decorator returns `{:error, errors}` if parameter validation fails.
+  Use `:error_mode` option to control error handling:
 
-      @decorate pex(schema: %{name: [type: :string, default: "Anonymous"]}, no_errors: true)
+      @decorate pex(schema: %{name: [type: :string, default: "Anonymous"]}, error_mode: :fallback)
       def action(conn, params) do
         # params.name will be "Anonymous" if validation fails
       end
@@ -52,11 +52,11 @@ defmodule Pex.Decorator do
         # params.page is guaranteed to be an integer >= 1
       end
 
-      # With no-error mode
+      # With fallback mode
       @decorate pex(schema: %{
         filter: [type: :string, default: "all"],
         sort: [type: :string, in: ["name", "date"], default: "name"]
-      }, no_errors: true)
+      }, error_mode: :fallback)
       def index(conn, params) do
         # Even with invalid input, params will have valid defaults
       end
@@ -69,10 +69,10 @@ defmodule Pex.Decorator do
 
   def pex(opts, body, %{args: [_conn, params]}) do
     schema = Keyword.get(opts, :schema) || raise "schema is required"
-    no_errors? = Keyword.get(opts, :no_errors, false)
+    error_mode = Keyword.get(opts, :error_mode, :strict)
 
     quote do
-      var!(params) = Pex.run(unquote(schema), unquote(params), no_errors: unquote(no_errors?))
+      var!(params) = Pex.run(unquote(schema), unquote(params), error_mode: unquote(error_mode))
       unquote(body)
     end
   end

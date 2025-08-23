@@ -25,20 +25,20 @@ defmodule Pex.DecoratorTest do
       assert match?({:__block__, _, _}, result)
     end
 
-    test "includes no_errors option when provided" do
+    test "includes error_mode option when provided" do
       schema = Macro.escape(%{name: [type: :string]})
-      opts = [schema: schema, no_errors: true]
+      opts = [schema: schema, error_mode: :fallback]
       body = quote do: {:ok, params}
       context = %{args: [Macro.escape(%{}), Macro.escape(%{})]}
 
       result = pex(opts, body, context)
 
-      # Convert to string to check if no_errors: true is included
+      # Convert to string to check if error_mode: :fallback is included
       result_string = Macro.to_string(result)
-      assert String.contains?(result_string, "no_errors: true")
+      assert String.contains?(result_string, "error_mode: :fallback")
     end
 
-    test "defaults no_errors to false when not provided" do
+    test "defaults error_mode to :strict when not provided" do
       schema = Macro.escape(%{name: [type: :string]})
       opts = [schema: schema]
       body = quote do: {:ok, params}
@@ -46,9 +46,9 @@ defmodule Pex.DecoratorTest do
 
       result = pex(opts, body, context)
 
-      # Convert to string to check if no_errors: false is included
+      # Convert to string to check if error_mode: :strict is included
       result_string = Macro.to_string(result)
-      assert String.contains?(result_string, "no_errors: false")
+      assert String.contains?(result_string, "error_mode: :strict")
     end
   end
 
@@ -71,7 +71,7 @@ defmodule Pex.DecoratorTest do
                   q: [type: :string, default: ""],
                   page: [type: :integer, default: 1, min: 1]
                 },
-                no_errors: true
+                error_mode: :fallback
               )
     def search(conn, params) do
       {:search, conn, params}
@@ -147,7 +147,7 @@ defmodule Pex.DecoratorTest do
       assert processed_params.filter == "all"
     end
 
-    test "processes parameters with no_errors mode" do
+    test "processes parameters with error_mode: :fallback" do
       conn = %{test: "conn"}
       # Invalid page
       params = %{"q" => "search term", "page" => "invalid"}
@@ -160,7 +160,7 @@ defmodule Pex.DecoratorTest do
       assert processed_params.page == 1
     end
 
-    test "handles empty parameters with defaults in no_errors mode" do
+    test "handles empty parameters with defaults in error_mode: :fallback" do
       conn = %{test: "conn"}
       params = %{}
 

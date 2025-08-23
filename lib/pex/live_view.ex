@@ -32,7 +32,7 @@ defmodule Pex.LiveView do
   ## Options
 
   - `:schema` - The parameter schema definition (required)
-  - `:no_errors` - When true, uses graceful fallback instead of raising errors
+  - `:error_mode` - Controls error handling behavior (`:strict`, `:fallback`, `:raise`, or `function`)
 
   ## Parameter Access
 
@@ -64,12 +64,12 @@ defmodule Pex.LiveView do
 
   ## Error Handling
 
-  By default, invalid parameters will cause errors. Use `:no_errors` option for
-  graceful fallback to defaults:
+  By default, invalid parameters will cause errors. Use `:error_mode` option to
+  control error handling:
 
       use Pex.LiveView,
         schema: %{search: [type: :string, default: ""]},
-        no_errors: true
+        error_mode: :fallback
   """
 
   alias Phoenix.LiveView.Socket
@@ -77,14 +77,14 @@ defmodule Pex.LiveView do
 
   defmacro __using__(opts) do
     schema = Keyword.get(opts, :schema) || raise "schema is required"
-    no_errors? = Keyword.get(opts, :no_errors, false)
+    error_mode = Keyword.get(opts, :error_mode, :strict)
 
     quote do
       @pex_schema unquote(schema)
 
       @spec on_mount(:pex_params, map(), map(), Socket.t()) :: {:cont, Socket.t()}
       def on_mount(:pex_params, params, _session, socket) do
-        pex_params = Pex.run(@pex_schema, params, no_errors: unquote(no_errors?))
+        pex_params = Pex.run(@pex_schema, params, error_mode: unquote(error_mode))
 
         socket =
           socket
@@ -97,7 +97,7 @@ defmodule Pex.LiveView do
       on_mount({__MODULE__, :pex_params})
 
       defp handle_pex_params(params, _uri, socket) do
-        pex_params = Pex.run(@pex_schema, params, no_errors: unquote(no_errors?))
+        pex_params = Pex.run(@pex_schema, params, error_mode: unquote(error_mode))
         {:cont, Component.assign(socket, pex: pex_params)}
       end
     end

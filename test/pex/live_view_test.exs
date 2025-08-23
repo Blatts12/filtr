@@ -22,7 +22,7 @@ defmodule Pex.LiveViewTest do
           filter: [type: :string, default: "all"]
         }
 
-        pex_params = Pex.run(schema, params, no_errors: false)
+        pex_params = Pex.run(schema, params, error_mode: :strict)
 
         socket =
           socket
@@ -46,7 +46,7 @@ defmodule Pex.LiveViewTest do
           filter: [type: :string, default: "all"]
         }
 
-        pex_params = Pex.run(schema, params, no_errors: false)
+        pex_params = Pex.run(schema, params, error_mode: :strict)
         {:cont, assign(socket, :pex, pex_params)}
       end
 
@@ -65,7 +65,7 @@ defmodule Pex.LiveViewTest do
           limit: [type: :integer, default: 10]
         }
 
-        pex_params = Pex.run(schema, params, no_errors: true)
+        pex_params = Pex.run(schema, params, error_mode: :fallback)
         socket = assign(socket, :pex, pex_params)
         {:cont, socket}
       end
@@ -108,7 +108,7 @@ defmodule Pex.LiveViewTest do
       assert updated_socket.assigns.pex.filter == "all"
     end
 
-    test "on_mount with no_errors handles invalid parameters gracefully" do
+    test "on_mount with error_mode: :fallback handles invalid parameters gracefully" do
       params = %{"query" => "search", "limit" => "invalid"}
       session = %{}
       socket = mock_socket(%{})
@@ -142,7 +142,7 @@ defmodule Pex.LiveViewTest do
           age: [type: :integer, min: 18, max: 65]
         }
 
-        pex_params = Pex.run(schema, params, no_errors: false)
+        pex_params = Pex.run(schema, params, error_mode: :strict)
         socket = assign(socket, :pex, pex_params)
         {:cont, socket}
       end

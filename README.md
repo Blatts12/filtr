@@ -10,7 +10,7 @@ A powerful Elixir library for parsing and validating query parameters in Phoenix
 - 🎯 **Decorator Integration** - Clean controller annotations using the decorator package
 - 🚀 **Phoenix Integration** - Seamless integration with Phoenix controllers and LiveViews
 - 📊 **Comprehensive Error Handling** - Detailed error messages for validation failures
-- 🛟 **No-Error Mode** - Graceful fallback where invalid values become defaults or nil
+- 🛟 **Flexible Error Handling** - Multiple error modes including fallback to defaults, exceptions, or custom handlers
 
 ## Installation
 
@@ -203,7 +203,7 @@ result = Pex.run(schema, params)
 
 ### Strict Mode (Default)
 
-By default, Pex returns error tuples:
+By default, Pex returns error tuples when validation fails:
 
 ```elixir
 schema = %{name: [type: :string, required: true]}
@@ -213,9 +213,13 @@ Pex.run(schema, params)
 # Returns: %{name: {:error, ["required"]}}
 ```
 
-### No-Error Mode
+### Error Mode Options
 
-Use `:no_errors` option for graceful fallback to defaults:
+Use the `:error_mode` option to control how validation errors are handled:
+
+#### Fallback Mode
+
+Use `:error_mode: :fallback` for graceful fallback to defaults:
 
 ```elixir
 schema = %{
@@ -224,8 +228,37 @@ schema = %{
 }
 params = %{"age" => "invalid"}
 
-result = Pex.run(schema, params, no_errors: true)
+result = Pex.run(schema, params, error_mode: :fallback)
 # => %{name: "Anonymous", age: 0}
+```
+
+#### Raise Mode
+
+Use `:error_mode: :raise` to raise exceptions on validation failures:
+
+```elixir
+schema = %{name: [type: :string, required: true]}
+params = %{}
+
+Pex.run(schema, params, error_mode: :raise)
+# Raises: ** (ArgumentError) Validation failed: %{name: ["required"]}
+```
+
+#### Custom Function
+
+Use `:error_mode: function` to provide custom error handling:
+
+```elixir
+schema = %{name: [type: :string, required: true]}
+params = %{}
+
+halt_fn = fn errors ->
+  Logger.error("Validation failed: #{inspect(errors)}")
+  :custom_response
+end
+
+result = Pex.run(schema, params, error_mode: halt_fn)
+# => :custom_response
 ```
 
 ## Advanced Features
@@ -245,7 +278,7 @@ schema = %{
 }
 ```
 
-### Phoenix Controller with No-Error Mode
+### Phoenix Controller with Fallback Mode
 
 ```elixir
 defmodule MyAppWeb.SearchController do
@@ -253,11 +286,11 @@ defmodule MyAppWeb.SearchController do
   use Pex.Decorator
 
   @decorate pex(
+    error_mode: :fallback,
     schema: %{
       q: [type: :string, default: ""],
       page: [type: :integer, default: 1, min: 1]
-    },
-    no_errors: true
+    }
   )
 
   def index(conn, params) do
@@ -267,7 +300,7 @@ defmodule MyAppWeb.SearchController do
 end
 ```
 
-### LiveView with No-Error Mode
+### LiveView with Fallback Mode
 
 For graceful parameter handling in LiveViews:
 
@@ -275,12 +308,12 @@ For graceful parameter handling in LiveViews:
 defmodule MyAppWeb.SearchLive do
   use MyAppWeb, :live_view
   use Pex.LiveView,
+    error_mode: :fallback,
     schema: %{
       search: [type: :string, default: ""],
       page: [type: :integer, default: 1, min: 1],
       filters: [type: {:list, :string}, default: []]
-    },
-    no_errors: true
+    }
 
   def handle_params(_params, _uri, socket) do
     # All parameters are guaranteed to have valid values

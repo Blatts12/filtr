@@ -11,7 +11,7 @@ defmodule Pex do
   - **Decorator Integration** - Clean controller annotations using the decorator package
   - **Phoenix Integration** - Seamless integration with Phoenix controllers and LiveViews
   - **Comprehensive Error Handling** - Detailed error messages for validation failures
-  - **No-Error Mode** - Graceful fallback where invalid values become defaults or nil
+  - **Error Mode Control** - Flexible error handling with :fallback, :strict, :raise, and custom halt options
 
   ## Basic Usage
 
@@ -51,16 +51,24 @@ defmodule Pex do
 
   ## Error Handling
 
-  By default, Pex returns `{:error, errors}` when validation fails. Use the `:no_errors`
-  option to enable graceful fallback to default values instead of errors.
+  By default, Pex returns `{:error, errors}` when validation fails. Use the `:error_mode`
+  option to control error handling behavior.
 
       # Strict mode (default)
       Pex.run(schema, invalid_params)
       # => {:error, ["validation failed"]}
 
-      # No-error mode
-      Pex.run(schema, invalid_params, no_errors: true)
+      # Fallback mode
+      Pex.run(schema, invalid_params, error_mode: :fallback)
       # => %{param: default_value}
+
+      # Raise mode
+      Pex.run(schema, invalid_params, error_mode: :raise)
+      # => raises ArgumentError
+
+      # Custom function mode
+      Pex.run(schema, invalid_params, error_mode: fn _errors -> :custom_response end)
+      # => :custom_response
   """
 
   alias Pex.Validator
@@ -96,12 +104,19 @@ defmodule Pex do
 
   ## Options
 
-  - `:no_errors` - When `true`, returns default values instead of errors for invalid parameters
+  - `:error_mode` - Controls error handling behavior:
+    - `:strict` (default) - Returns `{:error, errors}` tuple
+    - `:fallback` - Returns default values instead of errors
+    - `:raise` - Raises exceptions on validation errors
+    - `function` - Calls custom function with errors and returns its result
 
   ## Returns
 
   - A map of validated and cast parameters when successful
-  - `{:error, errors}` when validation fails and `:no_errors` is false
+  - `{:error, errors}` when validation fails and `:error_mode` is `:strict` (default)
+  - Default values when validation fails and `:error_mode` is `:fallback`
+  - Raises exception when validation fails and `:error_mode` is `:raise`
+  - Custom result when validation fails and `:error_mode` is `function`
 
   ## Examples
 
@@ -118,9 +133,17 @@ defmodule Pex do
       Pex.run(schema, %{"age" => "invalid"})
       # => {:error, ["required", "invalid integer"]}
 
-      # Invalid parameters (no-error mode)
-      Pex.run(schema, %{"age" => "invalid"}, no_errors: true)
+      # Invalid parameters (fallback mode)
+      Pex.run(schema, %{"age" => "invalid"}, error_mode: :fallback)
       # => %{name: nil, age: nil}
+
+      # Invalid parameters (raise mode)
+      Pex.run(schema, %{"age" => "invalid"}, error_mode: :raise)
+      # => raises ArgumentError
+
+      # Invalid parameters (custom function)
+      Pex.run(schema, %{"age" => "invalid"}, error_mode: fn _errors -> :failed end)
+      # => :failed
 
   ## Nested Schemas
 
@@ -139,31 +162,30 @@ defmodule Pex do
   @spec run(schema :: map(), params :: map()) :: pex_params()
   @spec run(schema :: map(), params :: map(), opts :: keyword()) :: pex_params()
   def run(schema, params, run_opts \\ []) do
-    no_errors? = Keyword.get(run_opts, :no_errors, false)
+    error_mode = Keyword.get(run_opts, :error_mode, :strict)
 
-    Map.new(schema, fn
-      {key, nested_schema} when is_map(nested_schema) ->
-        values = get_value(params, key)
-        {key, run(nested_schema, values, run_opts)}
+    try do
+      Map.new(schema, fn
+        {key, nested_schema} when is_map(nested_schema) ->
+          values = get_value(params, key)
+          {key, run(nested_schema, values, run_opts)}
 
-      {key, opts} ->
-        {type, opts} = Keyword.pop(opts, :type, :__none__)
-        {default, opts} = Keyword.pop(opts, :default, :__none__)
-        value = get_value(params, key, default)
+        {key, opts} ->
+          {type, opts} = Keyword.pop(opts, :type, :__none__)
+          {default, opts} = Keyword.pop(opts, :default, :__none__)
+          value = get_value(params, key, default)
 
-        with {:ok, casted_value} <- Caster.run(value, type, opts),
-             {:ok, validated_value} <- Validator.run(casted_value, type, opts) do
-          {key, validated_value}
-        else
-          error ->
-            if no_errors? do
-              default_value = get_default(default, params, key)
-              {key, default_value}
-            else
-              handle_error(error)
-            end
-        end
-    end)
+          with {:ok, casted_value} <- Caster.run(value, type, opts),
+               {:ok, validated_value} <- Validator.run(casted_value, type, opts) do
+            {key, validated_value}
+          else
+            error ->
+              handle_error_with_mode(error, error_mode, default, params, key)
+          end
+      end)
+    catch
+      {:halt_return, result} -> result
+    end
   end
 
   defp get_value(params, key), do: Map.get(params, to_string(key)) || Map.get(params, key)
@@ -182,6 +204,31 @@ defmodule Pex do
   defp get_default(default, params, key) when is_function(default, 2), do: default.(key, params)
   defp get_default(:__none__, _, _), do: nil
   defp get_default(default, _, _), do: default
+
+  defp handle_error_with_mode(error, :strict, _default, _params, _key) do
+    handle_error(error)
+  end
+
+  defp handle_error_with_mode(_error, :fallback, default, params, key) do
+    default_value = get_default(default, params, key)
+    {key, default_value}
+  end
+
+  defp handle_error_with_mode(error, :raise, _default, _params, _key) do
+    errors = case error do
+      {:error, errors} when is_list(errors) -> errors
+      {:error, error} -> [error]
+    end
+    raise ArgumentError, "Validation failed: #{Enum.join(errors, ", ")}"
+  end
+
+  defp handle_error_with_mode(error, halt_fn, _default, _params, _key) when is_function(halt_fn, 1) do
+    errors = case error do
+      {:error, errors} when is_list(errors) -> errors
+      {:error, error} -> [error]
+    end
+    throw({:halt_return, halt_fn.(errors)})
+  end
 
   defp handle_error({:error, errors}) when is_list(errors), do: {:error, errors}
   defp handle_error({:error, error}), do: {:error, [error]}
