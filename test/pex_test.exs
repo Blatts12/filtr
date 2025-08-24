@@ -164,24 +164,13 @@ defmodule PexTest do
       end
     end
 
-    test "calls custom function when error_mode is function/1" do
-      func = fn key -> {key, key} end
-
-      schema = %{name: [type: :string, required: true]}
-      params = %{}
-
-      result = Pex.run(schema, params, error_mode: func)
-      assert %{name: :name} = result
-    end
-
     test "calls custom function when error_mode is function/2" do
       func = fn key, errors -> {key, errors} end
 
       schema = %{name: [type: :string, required: true]}
       params = %{}
 
-      result = Pex.run(schema, params, error_mode: func)
-      assert %{name: ["required"]} = result
+      assert %{name: ["required"]} = Pex.run(schema, params, error_mode: func)
     end
 
     test "calls custom function when error_mode is function/3" do
@@ -190,8 +179,7 @@ defmodule PexTest do
       schema = %{name: [type: :string, required: true]}
       params = %{}
 
-      result = Pex.run(schema, params, error_mode: func)
-      assert %{name: [["required"], %{}]} = result
+      assert %{name: [["required"], %{}]} = Pex.run(schema, params, error_mode: func)
     end
 
     test "returns strict error tuples when error_mode: :strict" do
@@ -209,6 +197,15 @@ defmodule PexTest do
       result_explicit = Pex.run(schema, params, error_mode: :fallback)
 
       assert result_default == result_explicit
+    end
+
+    test "raises when invalid error_mode is specified" do
+      schema = %{name: [type: :string, required: true]}
+      params = %{}
+
+      assert_raise RuntimeError, ~r/Invalid error mode/, fn ->
+        Pex.run(schema, params, error_mode: :invalid)
+      end
     end
   end
 

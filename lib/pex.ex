@@ -134,7 +134,7 @@ defmodule Pex do
       # => raises ArgumentError
 
       # Invalid parameters (custom function)
-      Pex.run(schema, %{"age" => "invalid"}, error_mode: fn _errors -> :failed end)
+      Pex.run(schema, %{"age" => "invalid"}, error_mode: fn _key, _errors -> :failed end)
       # => :failed
 
   ## Nested Schemas
@@ -156,28 +156,24 @@ defmodule Pex do
   def run(schema, params, run_opts \\ []) do
     error_mode = Keyword.get(run_opts, :error_mode, :fallback)
 
-    try do
-      Map.new(schema, fn
-        {key, nested_schema} when is_map(nested_schema) ->
-          values = get_value(params, key)
-          {key, run(nested_schema, values, run_opts)}
+    Map.new(schema, fn
+      {key, nested_schema} when is_map(nested_schema) ->
+        values = get_value(params, key)
+        {key, run(nested_schema, values, run_opts)}
 
-        {key, opts} ->
-          {type, opts} = Keyword.pop(opts, :type, :__none__)
-          {default, opts} = Keyword.pop(opts, :default, :__none__)
-          value = get_value(params, key, default)
+      {key, opts} ->
+        {type, opts} = Keyword.pop(opts, :type, :__none__)
+        {default, opts} = Keyword.pop(opts, :default, :__none__)
+        value = get_value(params, key, default)
 
-          with {:ok, casted_value} <- Caster.run(value, type, opts),
-               {:ok, validated_value} <- Validator.run(casted_value, type, opts) do
-            {key, validated_value}
-          else
-            error ->
-              handle_error_with_mode(error, error_mode, default, params, key)
-          end
-      end)
-    catch
-      {:halt_return, result} -> result
-    end
+        with {:ok, casted_value} <- Caster.run(value, type, opts),
+             {:ok, validated_value} <- Validator.run(casted_value, type, opts) do
+          {key, validated_value}
+        else
+          error ->
+            handle_error_with_mode(error, error_mode, default, params, key)
+        end
+    end)
   end
 
   defp get_value(params, key), do: Map.get(params, to_string(key)) || Map.get(params, key)
@@ -215,7 +211,6 @@ defmodule Pex do
     {:error, errors} = handle_error(error)
 
     cond do
-      is_function(func, 1) -> func.(key)
       is_function(func, 2) -> func.(key, errors)
       is_function(func, 3) -> func.(key, errors, params)
       true -> raise "Invalid error mode: #{inspect(func)}"
