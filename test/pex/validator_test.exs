@@ -4,7 +4,7 @@ defmodule Pex.ValidatorTest do
 
   alias Pex.Validator
 
-  describe "run/2 and run/3" do
+  describe "run/2" do
     test "returns ok tuple for valid value with no constraints" do
       assert Validator.run("hello", :string) == {:ok, "hello"}
       assert Validator.run(42, :integer) == {:ok, 42}
@@ -16,9 +16,13 @@ defmodule Pex.ValidatorTest do
     end
 
     test "ignores unsupported options for given type" do
-      # min/max are not supported for string type in this validator
-      # but the function should still work and ignore them
       assert Validator.run("hello", :string, unknown_option: true) == {:ok, "hello"}
+    end
+
+    test "raises with unsupported type" do
+      assert_raise RuntimeError, ~r/Unsupported type/, fn ->
+        Validator.run("test", :unknown_type, [])
+      end
     end
   end
 
@@ -277,6 +281,12 @@ defmodule Pex.ValidatorTest do
       validator = fn value -> {:ok, value} end
 
       assert Validator.run("test", :string, validate: validator) == {:ok, "test"}
+    end
+
+    test "custom validation function returning :error" do
+      validator = fn _value -> :error end
+
+      assert Validator.run("test", :string, validate: validator) == :error
     end
 
     test "custom validation function returning {:error, message}" do

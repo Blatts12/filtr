@@ -87,7 +87,19 @@ defmodule Pex do
           | nil
 
   @type pex_params :: map()
+
   @empty_pex_params %{}
+
+  @supported_types [
+    :string,
+    :integer,
+    :float,
+    :boolean,
+    :date,
+    :datetime,
+    :list,
+    nil
+  ]
 
   @doc """
   Parses and validates parameters according to the provided schema.
@@ -227,10 +239,6 @@ defmodule Pex do
   that matches the type expected by Pex functions. Useful as a fallback
   when no parameters are available.
 
-  ## Returns
-
-  An empty map representing no parameters.
-
   ## Examples
 
       Pex.empty_pex_params()
@@ -241,4 +249,10 @@ defmodule Pex do
   """
   @spec empty_pex_params() :: pex_params()
   def empty_pex_params(), do: @empty_pex_params
+
+  @doc """
+  Returns a list of supported parameter types.
+  """
+  @spec supported_types() :: [Pex.supported_types()]
+  def supported_types(), do: @supported_types
 end

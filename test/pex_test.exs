@@ -258,6 +258,12 @@ defmodule PexTest do
     end
   end
 
+  describe "supported_types/0" do
+    test "returns supported types" do
+      assert match?([:string | _], Pex.supported_types())
+    end
+  end
+
   describe "type casting integration" do
     test "casts various types correctly" do
       schema = %{

@@ -105,6 +105,8 @@ defmodule Pex.Validator do
     __none__: []
   }
 
+  @supported_types Pex.supported_types() ++ [:__none__]
+
   @doc """
   Validates a value according to its type and validation options.
 
@@ -174,7 +176,8 @@ defmodule Pex.Validator do
   def run(value, type, opts \\ []) do
     opts = Keyword.take(opts, Map.get(@supported_opts, type, []) ++ @common_opts)
 
-    with :ok <- check_required(value, opts),
+    with :ok <- valid_type?(type),
+         :ok <- check_required(value, opts),
          :ok <- valid_value(value, type, opts) do
       {:ok, value}
     end
@@ -219,7 +222,7 @@ defmodule Pex.Validator do
     if value =~ pattern, do: :ok, else: {:error, "does not match pattern"}
   end
 
-  defp valid?(:pattern, nil, :string, _pattern) do
+  defp valid?(:pattern, _value, :string, _pattern) do
     {:error, "does not match pattern"}
   end
 
@@ -230,7 +233,7 @@ defmodule Pex.Validator do
       else: {:error, "does not start with #{prefix}"}
   end
 
-  defp valid?(:starts_with, nil, :string, prefix) do
+  defp valid?(:starts_with, _value, :string, prefix) do
     {:error, "does not start with #{prefix}"}
   end
 
@@ -241,7 +244,7 @@ defmodule Pex.Validator do
       else: {:error, "does not end with #{suffix}"}
   end
 
-  defp valid?(:ends_with, nil, :string, suffix) do
+  defp valid?(:ends_with, _value, :string, suffix) do
     {:error, "does not end with #{suffix}"}
   end
 
@@ -252,7 +255,7 @@ defmodule Pex.Validator do
       else: {:error, "must contain '#{substring}'"}
   end
 
-  defp valid?(:contains, nil, :string, substring) do
+  defp valid?(:contains, _value, :string, substring) do
     {:error, "must contain '#{substring}'"}
   end
 
@@ -263,7 +266,7 @@ defmodule Pex.Validator do
       else: {:error, "must be exactly #{length} characters long"}
   end
 
-  defp valid?(:length, nil, :string, length) do
+  defp valid?(:length, _value, :string, length) do
     {:error, "must be exactly #{length} characters long"}
   end
 
@@ -276,7 +279,7 @@ defmodule Pex.Validator do
       else: {:error, "must contain only letters and numbers"}
   end
 
-  defp valid?(:alphanumeric, nil, :string, true) do
+  defp valid?(:alphanumeric, _value, :string, true) do
     {:error, "must contain only letters and numbers"}
   end
 
@@ -411,6 +414,7 @@ defmodule Pex.Validator do
   # Already handled
   defp valid?(:required, _value, _type, _check), do: :ok
 
-  defp valid?(opt, _value, type, _check),
-    do: raise("unsupported validation: #{opt}, type: #{type}")
+  defp valid_type?(type) when type in @supported_types, do: :ok
+  defp valid_type?({:list, type}) when type in @supported_types, do: :ok
+  defp valid_type?(type), do: raise("Unsupported type: #{inspect(type)}")
 end
