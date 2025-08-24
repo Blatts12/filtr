@@ -71,8 +71,8 @@ defmodule Pex do
       # => :custom_response
   """
 
-  alias Pex.Validator
   alias Pex.Caster
+  alias Pex.Validator
 
   @type supported_types ::
           :string
@@ -248,11 +248,11 @@ defmodule Pex do
       params = socket.assigns[:pex] || Pex.empty_pex_params()
   """
   @spec empty_pex_params() :: pex_params()
-  def empty_pex_params(), do: @empty_pex_params
+  def empty_pex_params, do: @empty_pex_params
 
   @doc """
   Returns a list of supported parameter types.
   """
   @spec supported_types() :: [Pex.supported_types()]
-  def supported_types(), do: @supported_types
+  def supported_types, do: @supported_types
 end

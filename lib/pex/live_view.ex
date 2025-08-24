@@ -72,8 +72,8 @@ defmodule Pex.LiveView do
         error_mode: :fallback
   """
 
-  alias Phoenix.LiveView.Socket
   alias Phoenix.Component
+  alias Phoenix.LiveView.Socket
 
   @valid_error_modes [:strict, :fallback, :raise]
 

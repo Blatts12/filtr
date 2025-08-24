@@ -6,8 +6,8 @@ defmodule Pex.LiveViewTest.LiveRouter do
   import Phoenix.LiveView.Router
 
   alias Pex.LiveViewTest.FallbackLive
-  alias Pex.LiveViewTest.StrictLive
   alias Pex.LiveViewTest.RaiseLive
+  alias Pex.LiveViewTest.StrictLive
 
   live_session :pex do
     live("/fallback", FallbackLive)
