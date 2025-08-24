@@ -64,7 +64,7 @@ defmodule Pex.LiveView do
 
   ## Error Handling
 
-  By default, invalid parameters will cause errors. Use `:error_mode` option to
+  By default, it returns default values when validation fails. Use `:error_mode` option to
   control error handling:
 
       use Pex.LiveView,
@@ -77,7 +77,7 @@ defmodule Pex.LiveView do
 
   defmacro __using__(opts) do
     schema = Keyword.get(opts, :schema) || raise "schema is required"
-    error_mode = Keyword.get(opts, :error_mode, :strict)
+    error_mode = Keyword.get(opts, :error_mode, :fallback)
 
     quote do
       @pex_schema unquote(schema)
@@ -102,5 +102,4 @@ defmodule Pex.LiveView do
       end
     end
   end
-
 end

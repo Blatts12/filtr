@@ -1,215 +1,87 @@
 defmodule Pex.LiveViewTest do
   use ExUnit.Case
+
+  import Phoenix.ConnTest
+  import Phoenix.LiveViewTest
+
   doctest Pex.LiveView
 
-  # Mock socket structure for testing
-  defp mock_socket(assigns) do
-    %{assigns: assigns}
-  end
+  alias Pex.LiveViewTest.Endpoint
 
+  @endpoint Endpoint
 
-  describe "__using__ macro functionality" do
-    # Test the actual macro functionality with a test LiveView module
-    defmodule TestLiveView do
-      # Mock the on_mount function since we don't have the full Phoenix LiveView context
-      def __using__(_opts), do: quote(do: nil)
+  describe "live view with fallback error mode" do
+    setup [:init_session]
 
-      # Manually define what the macro should create for testing
-      def on_mount(:pex_params, params, _session, socket) do
-        schema = %{
-          search: [type: :string, default: ""],
-          page: [type: :integer, default: 1, min: 1],
-          filter: [type: :string, default: "all"]
-        }
-
-        pex_params = Pex.run(schema, params, error_mode: :strict)
-
-        socket =
-          socket
-          |> assign(:pex, pex_params)
-          |> attach_hook(socket, :handle_params, &handle_pex_params/3)
-
-        {:cont, socket}
-      end
-
-      # Mock the attach_hook function
-      def attach_hook(socket, _original_socket, _event, _function) do
-        # For testing, just return the socket
-        socket
-      end
-
-      # Mock handler for the hook
-      def handle_pex_params(params, _uri, socket) do
-        schema = %{
-          search: [type: :string, default: ""],
-          page: [type: :integer, default: 1, min: 1],
-          filter: [type: :string, default: "all"]
-        }
-
-        pex_params = Pex.run(schema, params, error_mode: :strict)
-        {:cont, assign(socket, :pex, pex_params)}
-      end
-
-      # Mock the Phoenix.Component.assign function
-      def assign(socket, key, value) do
-        assigns = Map.put(socket.assigns, key, value)
-        %{socket | assigns: assigns}
-      end
+    test "default values in assigns with no params", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, "/fallback")
+      assert %{limit: 10, query: nil} = get_assigns(lv).pex
     end
 
-    defmodule TestLiveViewNoErrors do
-      # Manually define what the macro should create for testing
-      def on_mount(:pex_params, params, _session, socket) do
-        schema = %{
-          query: [type: :string, default: ""],
-          limit: [type: :integer, default: 10]
-        }
-
-        pex_params = Pex.run(schema, params, error_mode: :fallback)
-        socket = assign(socket, :pex, pex_params)
-        {:cont, socket}
-      end
-
-      def assign(socket, key, value) do
-        assigns = Map.put(socket.assigns, key, value)
-        %{socket | assigns: assigns}
-      end
+    test "correct values in assigns with valid params", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, "/fallback?query=elixir&limit=5")
+      assert %{limit: 5, query: "elixir"} = get_assigns(lv).pex
     end
 
-    test "defines on_mount callback for pex_params" do
-      # Test that the on_mount callback is defined
-      assert function_exported?(TestLiveView, :on_mount, 4)
+    test "default values in assigns with invalid params", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, "/fallback?query=elixir&limit=invalid")
+      assert %{limit: 10, query: "elixir"} = get_assigns(lv).pex
+
+      {:ok, lv, _html} = live(conn, "/fallback?query=123&limit=1")
+      assert %{limit: 10, query: "123"} = get_assigns(lv).pex
     end
 
-    test "on_mount processes parameters correctly" do
-      params = %{"search" => "elixir", "page" => "2"}
-      session = %{}
-      socket = mock_socket(%{})
-
-      result = TestLiveView.on_mount(:pex_params, params, session, socket)
-
-      assert {:cont, updated_socket} = result
-      assert updated_socket.assigns.pex.search == "elixir"
-      assert updated_socket.assigns.pex.page == 2
-      # default value
-      assert updated_socket.assigns.pex.filter == "all"
-    end
-
-    test "on_mount uses defaults for missing parameters" do
-      params = %{}
-      session = %{}
-      socket = mock_socket(%{})
-
-      result = TestLiveView.on_mount(:pex_params, params, session, socket)
-
-      assert {:cont, updated_socket} = result
-      assert updated_socket.assigns.pex.search == ""
-      assert updated_socket.assigns.pex.page == 1
-      assert updated_socket.assigns.pex.filter == "all"
-    end
-
-    test "on_mount with error_mode: :fallback handles invalid parameters gracefully" do
-      params = %{"query" => "search", "limit" => "invalid"}
-      session = %{}
-      socket = mock_socket(%{})
-
-      result = TestLiveViewNoErrors.on_mount(:pex_params, params, session, socket)
-
-      assert {:cont, updated_socket} = result
-      assert updated_socket.assigns.pex.query == "search"
-      # falls back to default
-      assert updated_socket.assigns.pex.limit == 10
-    end
-
-    test "on_mount handles invalid parameters in strict mode" do
-      params = %{"search" => "elixir", "page" => "invalid"}
-      session = %{}
-      socket = mock_socket(%{})
-
-      result = TestLiveView.on_mount(:pex_params, params, session, socket)
-      # Due to current implementation bug, errors become map entries instead of raising
-      assert {:cont, updated_socket} = result
-      assert Map.has_key?(updated_socket.assigns.pex, :error)
+    test "default and correct values in assigns with one missing param", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, "/fallback?query=elixir")
+      assert %{limit: 10, query: "elixir"} = get_assigns(lv).pex
     end
   end
 
-  describe "schema validation integration" do
-    defmodule ValidatedLiveView do
-      # Manually define what the macro should create for testing
-      def on_mount(:pex_params, params, _session, socket) do
-        schema = %{
-          email: [type: :string, pattern: ~r/@/, required: true],
-          age: [type: :integer, min: 18, max: 65]
-        }
+  describe "live view with strict error mode" do
+    setup [:init_session]
 
-        pex_params = Pex.run(schema, params, error_mode: :strict)
-        socket = assign(socket, :pex, pex_params)
-        {:cont, socket}
-      end
-
-      def assign(socket, key, value) do
-        assigns = Map.put(socket.assigns, key, value)
-        %{socket | assigns: assigns}
-      end
+    test "default and errored value in assigns with no params", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, "/strict")
+      assert %{limit: 10, query: {:error, ["required"]}} = get_assigns(lv).pex
     end
 
-    test "validates parameters according to schema" do
-      params = %{"email" => "john@example.com", "age" => "25"}
-      session = %{}
-      socket = mock_socket(%{})
-
-      result = ValidatedLiveView.on_mount(:pex_params, params, session, socket)
-
-      assert {:cont, updated_socket} = result
-      assert updated_socket.assigns.pex.email == "john@example.com"
-      assert updated_socket.assigns.pex.age == 25
+    test "correct values in assigns with valid params", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, "/strict?query=elixir&limit=5")
+      assert %{limit: 5, query: "elixir"} = get_assigns(lv).pex
     end
 
-    test "handles invalid email pattern" do
-      params = %{"email" => "invalid-email", "age" => "25"}
-      session = %{}
-      socket = mock_socket(%{})
-
-      result = ValidatedLiveView.on_mount(:pex_params, params, session, socket)
-      # Due to current implementation bug, errors become map entries instead of raising
-      assert {:cont, updated_socket} = result
-      assert Map.has_key?(updated_socket.assigns.pex, :error)
-    end
-
-    test "handles missing required field" do
-      params = %{"age" => "25"}
-      session = %{}
-      socket = mock_socket(%{})
-
-      result = ValidatedLiveView.on_mount(:pex_params, params, session, socket)
-      # Due to current implementation bug, errors become map entries instead of raising
-      assert {:cont, updated_socket} = result
-      assert Map.has_key?(updated_socket.assigns.pex, :error)
-    end
-
-    test "handles age constraint violation" do
-      params = %{"email" => "john@example.com", "age" => "15"}
-      session = %{}
-      socket = mock_socket(%{})
-
-      result = ValidatedLiveView.on_mount(:pex_params, params, session, socket)
-      # Due to current implementation bug, errors become map entries instead of raising
-      assert {:cont, updated_socket} = result
-      assert Map.has_key?(updated_socket.assigns.pex, :error)
+    test "default and correct values in assigns with one missing param", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, "/strict?query=elixir")
+      assert %{limit: 10, query: "elixir"} = get_assigns(lv).pex
     end
   end
 
-  describe "error handling" do
-    test "LiveView module requires schema option" do
-      # This would be caught at compile time when using the actual macro
-      # For testing purposes, we verify the error message is correct
-      assert_raise RuntimeError, "schema is required", fn ->
-        # Simulate what the macro would do when schema is missing
-        opts = [invalid_option: true]
-        schema = Keyword.get(opts, :schema) || raise "schema is required"
-        schema
+  describe "live view with raise error mode" do
+    setup [:init_session]
+
+    test "raises an error with no params - required params missing", %{conn: conn} do
+      assert_raise Plug.Conn.WrapperError, ~r/Validation failed/, fn ->
+        {:ok, _lv, _html} = live(conn, "/raise")
       end
+    end
+
+    test "raises an error with invalid params", %{conn: conn} do
+      assert_raise Plug.Conn.WrapperError, ~r/Validation failed/, fn ->
+        {:ok, _lv, _html} = live(conn, "/raise?query=elixir&limit=invalid")
+      end
+    end
+
+    test "does not raise an error with missing optional param", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, "/raise?query=elixir")
+      assert %{limit: 10, query: "elixir"} = get_assigns(lv).pex
     end
   end
 
+  defp get_assigns(%{module: module} = lv) do
+    module.run(lv, fn socket -> {:reply, socket.assigns, socket} end)
+  end
+
+  defp init_session(_) do
+    {:ok, conn: Plug.Test.init_test_session(build_conn(), %{})}
+  end
 end

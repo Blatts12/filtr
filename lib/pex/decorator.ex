@@ -32,7 +32,7 @@ defmodule Pex.Decorator do
 
   ## Error Handling
 
-  By default, the decorator returns `{:error, errors}` if parameter validation fails.
+  By default, the decorator returns default values if parameter validation fails.
   Use `:error_mode` option to control error handling:
 
       @decorate pex(schema: %{name: [type: :string, default: "Anonymous"]}, error_mode: :fallback)
@@ -69,7 +69,7 @@ defmodule Pex.Decorator do
 
   def pex(opts, body, %{args: [_conn, params]}) do
     schema = Keyword.get(opts, :schema) || raise "schema is required"
-    error_mode = Keyword.get(opts, :error_mode, :strict)
+    error_mode = Keyword.get(opts, :error_mode, :fallback)
 
     quote do
       var!(params) = Pex.run(unquote(schema), unquote(params), error_mode: unquote(error_mode))

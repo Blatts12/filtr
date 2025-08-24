@@ -27,20 +27,7 @@ defmodule Pex.DecoratorTest do
 
     test "includes error_mode option when provided" do
       schema = Macro.escape(%{name: [type: :string]})
-      opts = [schema: schema, error_mode: :fallback]
-      body = quote do: {:ok, params}
-      context = %{args: [Macro.escape(%{}), Macro.escape(%{})]}
-
-      result = pex(opts, body, context)
-
-      # Convert to string to check if error_mode: :fallback is included
-      result_string = Macro.to_string(result)
-      assert String.contains?(result_string, "error_mode: :fallback")
-    end
-
-    test "defaults error_mode to :strict when not provided" do
-      schema = Macro.escape(%{name: [type: :string]})
-      opts = [schema: schema]
+      opts = [schema: schema, error_mode: :strict]
       body = quote do: {:ok, params}
       context = %{args: [Macro.escape(%{}), Macro.escape(%{})]}
 
@@ -50,6 +37,19 @@ defmodule Pex.DecoratorTest do
       result_string = Macro.to_string(result)
       assert String.contains?(result_string, "error_mode: :strict")
     end
+
+    test "defaults error_mode to :fallback when not provided" do
+      schema = Macro.escape(%{name: [type: :string]})
+      opts = [schema: schema]
+      body = quote do: {:ok, params}
+      context = %{args: [Macro.escape(%{}), Macro.escape(%{})]}
+
+      result = pex(opts, body, context)
+
+      # Convert to string to check if error_mode: :fallback is included
+      result_string = Macro.to_string(result)
+      assert String.contains?(result_string, "error_mode: :fallback")
+    end
   end
 
   # Test the actual decorator functionality with a test module
@@ -57,6 +57,7 @@ defmodule Pex.DecoratorTest do
     use Pex.Decorator
 
     @decorate pex(
+                error_mode: :strict,
                 schema: %{
                   name: [type: :string, required: true],
                   age: [type: :integer, min: 18]
@@ -70,14 +71,14 @@ defmodule Pex.DecoratorTest do
                 schema: %{
                   q: [type: :string, default: ""],
                   page: [type: :integer, default: 1, min: 1]
-                },
-                error_mode: :fallback
+                }
               )
     def search(conn, params) do
       {:search, conn, params}
     end
 
     @decorate pex(
+                error_mode: :strict,
                 schema: %{
                   filter: [type: :string, default: "all"]
                 }
@@ -88,6 +89,7 @@ defmodule Pex.DecoratorTest do
 
     # Test with nested schema
     @decorate pex(
+                error_mode: :strict,
                 schema: %{
                   user: %{
                     name: [type: :string, required: true],
@@ -108,11 +110,8 @@ defmodule Pex.DecoratorTest do
       conn = %{test: "conn"}
       params = %{"name" => "John", "age" => "25"}
 
-      result = TestController.create(conn, params)
-
-      assert {:ok, ^conn, processed_params} = result
-      assert processed_params.name == "John"
-      assert processed_params.age == 25
+      assert {:ok, ^conn, %{name: "John", age: 25}} =
+               TestController.create(conn, params)
     end
 
     test "handles invalid parameters in strict mode" do
@@ -120,10 +119,8 @@ defmodule Pex.DecoratorTest do
       # Below minimum age
       params = %{"name" => "John", "age" => "15"}
 
-      result = TestController.create(conn, params)
-      assert {:ok, ^conn, processed_params} = result
-      # Due to current implementation bug, errors become map entries
-      assert Map.has_key?(processed_params, :error)
+      assert {:ok, ^conn, %{name: "John", age: {:error, ["must be at least 18"]}}} =
+               TestController.create(conn, params)
     end
 
     test "handles missing required parameters" do
@@ -131,20 +128,16 @@ defmodule Pex.DecoratorTest do
       # Missing required name
       params = %{"age" => "25"}
 
-      result = TestController.create(conn, params)
-      assert {:ok, ^conn, processed_params} = result
-      # Due to current implementation bug, errors become map entries
-      assert Map.has_key?(processed_params, :error)
+      assert {:ok, ^conn, %{name: {:error, ["required"]}, age: 25}} =
+               TestController.create(conn, params)
     end
 
     test "uses defaults for missing parameters" do
       conn = %{test: "conn"}
       params = %{}
 
-      result = TestController.index(conn, params)
-
-      assert {:index, ^conn, processed_params} = result
-      assert processed_params.filter == "all"
+      assert {:index, ^conn, %{filter: "all"}} =
+               TestController.index(conn, params)
     end
 
     test "processes parameters with error_mode: :fallback" do
@@ -152,23 +145,16 @@ defmodule Pex.DecoratorTest do
       # Invalid page
       params = %{"q" => "search term", "page" => "invalid"}
 
-      result = TestController.search(conn, params)
-
-      assert {:search, ^conn, processed_params} = result
-      assert processed_params.q == "search term"
-      # Falls back to default
-      assert processed_params.page == 1
+      assert {:search, ^conn, %{q: "search term", page: 1}} =
+               TestController.search(conn, params)
     end
 
     test "handles empty parameters with defaults in error_mode: :fallback" do
       conn = %{test: "conn"}
       params = %{}
 
-      result = TestController.search(conn, params)
-
-      assert {:search, ^conn, processed_params} = result
-      assert processed_params.q == ""
-      assert processed_params.page == 1
+      assert {:search, ^conn, %{q: "", page: 1}} =
+               TestController.search(conn, params)
     end
 
     test "processes nested schemas correctly" do
@@ -179,12 +165,11 @@ defmodule Pex.DecoratorTest do
         "meta" => %{}
       }
 
-      result = TestController.update(conn, params)
-
-      assert {:update, ^conn, processed_params} = result
-      assert processed_params.user.name == "John"
-      assert processed_params.user.email == "john@example.com"
-      assert processed_params.meta.source == "web"
+      assert {:update, ^conn,
+              %{
+                user: %{name: "John", email: "john@example.com"},
+                meta: %{source: "web"}
+              }} = TestController.update(conn, params)
     end
 
     test "handles nested schema validation failure" do
@@ -195,10 +180,11 @@ defmodule Pex.DecoratorTest do
         "meta" => %{}
       }
 
-      result = TestController.update(conn, params)
-      assert {:update, ^conn, processed_params} = result
-      # Due to current implementation bug, errors may be included in the result
-      assert is_map(processed_params)
+      assert {:update, ^conn,
+              %{
+                meta: %{source: "web"},
+                user: %{email: {:error, ["does not match pattern"]}, name: "John"}
+              }} = TestController.update(conn, params)
     end
 
     test "handles missing nested required fields" do
@@ -210,54 +196,11 @@ defmodule Pex.DecoratorTest do
         "meta" => %{}
       }
 
-      result = TestController.update(conn, params)
-      assert {:update, ^conn, processed_params} = result
-      # Due to current implementation bug, errors may be included in the result
-      assert is_map(processed_params)
-    end
-  end
-
-  describe "parameter variable replacement" do
-    test "replaces params variable in function body" do
-      # This tests that the decorator correctly replaces the params variable
-      # with the processed parameters
-      conn = %{test: "conn"}
-      params = %{"name" => "John", "age" => "25"}
-
-      result = TestController.create(conn, params)
-
-      # The params in the result should be the processed params, not the original
-      assert {:ok, ^conn, processed_params} = result
-      assert is_map(processed_params)
-      assert processed_params.name == "John"
-      assert processed_params.age == 25
-
-      # Original params were strings, processed params have proper types
-      refute Map.has_key?(processed_params, "name")
-      refute Map.has_key?(processed_params, "age")
-    end
-  end
-
-  describe "error scenarios" do
-    test "handles casting errors appropriately" do
-      conn = %{test: "conn"}
-      params = %{"name" => "John", "age" => "not_a_number"}
-
-      result = TestController.create(conn, params)
-      assert {:ok, ^conn, processed_params} = result
-      # Due to current implementation bug, errors become map entries
-      assert Map.has_key?(processed_params, :error)
-    end
-
-    test "handles validation errors appropriately" do
-      conn = %{test: "conn"}
-      # Empty name fails required validation
-      params = %{"name" => "", "age" => "25"}
-
-      result = TestController.create(conn, params)
-      assert {:ok, ^conn, processed_params} = result
-      # Due to current implementation bug, errors become map entries
-      assert Map.has_key?(processed_params, :error)
+      assert {:update, ^conn,
+              %{
+                meta: %{source: "web"},
+                user: %{name: {:error, ["required"]}, email: "john@example.com"}
+              }} = TestController.update(conn, params)
     end
   end
 
@@ -297,17 +240,17 @@ defmodule Pex.DecoratorTest do
         "scores" => "85,92,78"
       }
 
-      result = TypeTestController.process_types(conn, params)
-
-      assert {:types, ^conn, processed_params} = result
-      assert processed_params.name == "John"
-      assert processed_params.age == 25
-      assert processed_params.height == 5.9
-      assert processed_params.active == true
-      assert processed_params.birthday == ~D[1990-01-15]
-      assert processed_params.created_at == ~U[2023-12-25 10:30:00Z]
-      assert processed_params.tags == ["elixir", "phoenix", "web"]
-      assert processed_params.scores == [85, 92, 78]
+      assert {:types, ^conn,
+              %{
+                name: "John",
+                age: 25,
+                height: 5.9,
+                active: true,
+                birthday: ~D[1990-01-15],
+                created_at: ~U[2023-12-25 10:30:00Z],
+                tags: ["elixir", "phoenix", "web"],
+                scores: [85, 92, 78]
+              }} = TypeTestController.process_types(conn, params)
     end
   end
 end

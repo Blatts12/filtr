@@ -1,6 +1,6 @@
 defmodule Pex do
   @moduledoc """
-  Pex is a powerful Elixir library for parsing and validating query parameters 
+  Pex is a powerful Elixir library for parsing and validating query parameters
   in Phoenix controllers and LiveViews using declarative schemas with custom validators.
 
   ## Features
@@ -41,7 +41,7 @@ defmodule Pex do
   ## Supported Types
 
   - `:string` - String values
-  - `:integer` - Integer numbers  
+  - `:integer` - Integer numbers
   - `:float` - Floating point numbers
   - `:boolean` - Boolean values (true/false)
   - `:date` - Date values (ISO8601 format)
@@ -51,16 +51,16 @@ defmodule Pex do
 
   ## Error Handling
 
-  By default, Pex returns `{:error, errors}` when validation fails. Use the `:error_mode`
+  By default, Pex returns default values when validation fails. Use the `:error_mode`
   option to control error handling behavior.
 
-      # Strict mode (default)
-      Pex.run(schema, invalid_params)
-      # => {:error, ["validation failed"]}
-
-      # Fallback mode
+      # Fallback mode (default)
       Pex.run(schema, invalid_params, error_mode: :fallback)
       # => %{param: default_value}
+
+      # Strict mode
+      Pex.run(schema, invalid_params)
+      # => {:error, ["validation failed"]}
 
       # Raise mode
       Pex.run(schema, invalid_params, error_mode: :raise)
@@ -105,18 +105,10 @@ defmodule Pex do
   ## Options
 
   - `:error_mode` - Controls error handling behavior:
-    - `:strict` (default) - Returns `{:error, errors}` tuple
-    - `:fallback` - Returns default values instead of errors
+    - `:fallback` (default) - Returns default values instead of errors
+    - `:strict` - Returns `{:error, errors}` tuple
     - `:raise` - Raises exceptions on validation errors
     - `function` - Calls custom function with errors and returns its result
-
-  ## Returns
-
-  - A map of validated and cast parameters when successful
-  - `{:error, errors}` when validation fails and `:error_mode` is `:strict` (default)
-  - Default values when validation fails and `:error_mode` is `:fallback`
-  - Raises exception when validation fails and `:error_mode` is `:raise`
-  - Custom result when validation fails and `:error_mode` is `function`
 
   ## Examples
 
@@ -129,13 +121,13 @@ defmodule Pex do
       Pex.run(schema, %{"name" => "John", "age" => "25"})
       # => %{name: "John", age: 25}
 
-      # Invalid parameters (strict mode)
-      Pex.run(schema, %{"age" => "invalid"})
-      # => {:error, ["required", "invalid integer"]}
-
       # Invalid parameters (fallback mode)
       Pex.run(schema, %{"age" => "invalid"}, error_mode: :fallback)
       # => %{name: nil, age: nil}
+
+      # Invalid parameters (strict mode)
+      Pex.run(schema, %{"age" => "invalid"})
+      # => {:error, ["required", "invalid integer"]}
 
       # Invalid parameters (raise mode)
       Pex.run(schema, %{"age" => "invalid"}, error_mode: :raise)
@@ -162,7 +154,7 @@ defmodule Pex do
   @spec run(schema :: map(), params :: map()) :: pex_params()
   @spec run(schema :: map(), params :: map(), opts :: keyword()) :: pex_params()
   def run(schema, params, run_opts \\ []) do
-    error_mode = Keyword.get(run_opts, :error_mode, :strict)
+    error_mode = Keyword.get(run_opts, :error_mode, :fallback)
 
     try do
       Map.new(schema, fn
@@ -205,8 +197,8 @@ defmodule Pex do
   defp get_default(:__none__, _, _), do: nil
   defp get_default(default, _, _), do: default
 
-  defp handle_error_with_mode(error, :strict, _default, _params, _key) do
-    handle_error(error)
+  defp handle_error_with_mode(error, :strict, _default, _params, key) do
+    {key, handle_error(error)}
   end
 
   defp handle_error_with_mode(_error, :fallback, default, params, key) do
@@ -214,20 +206,20 @@ defmodule Pex do
     {key, default_value}
   end
 
-  defp handle_error_with_mode(error, :raise, _default, _params, _key) do
-    errors = case error do
-      {:error, errors} when is_list(errors) -> errors
-      {:error, error} -> [error]
-    end
-    raise ArgumentError, "Validation failed: #{Enum.join(errors, ", ")}"
+  defp handle_error_with_mode(error, :raise, _default, _params, key) do
+    {:error, errors} = handle_error(error)
+    raise ArgumentError, "Validation failed for #{key}: #{Enum.join(errors, ", ")}"
   end
 
-  defp handle_error_with_mode(error, halt_fn, _default, _params, _key) when is_function(halt_fn, 1) do
-    errors = case error do
-      {:error, errors} when is_list(errors) -> errors
-      {:error, error} -> [error]
+  defp handle_error_with_mode(error, func, _default, params, key) do
+    {:error, errors} = handle_error(error)
+
+    cond do
+      is_function(func, 1) -> func.(key)
+      is_function(func, 2) -> func.(key, errors)
+      is_function(func, 3) -> func.(key, errors, params)
+      true -> raise "Invalid error mode: #{inspect(func)}"
     end
-    throw({:halt_return, halt_fn.(errors)})
   end
 
   defp handle_error({:error, errors}) when is_list(errors), do: {:error, errors}

@@ -86,18 +86,14 @@ defmodule PexTest do
       schema = %{name: [type: :string, required: true]}
       params = %{}
 
-      result = Pex.run(schema, params)
-      # Current implementation has a bug - it includes error tuple as map entry
-      assert Map.has_key?(result, :error)
+      assert %{name: {:error, ["required"]}} = Pex.run(schema, params, error_mode: :strict)
     end
 
     test "handles casting failure by including error in result" do
       schema = %{age: [type: :integer]}
       params = %{"age" => "not_a_number"}
 
-      result = Pex.run(schema, params)
-      # Current implementation has a bug - it includes error tuple as map entry
-      assert Map.has_key?(result, :error)
+      assert %{age: {:error, ["invalid integer"]}} = Pex.run(schema, params, error_mode: :strict)
     end
   end
 
@@ -168,32 +164,50 @@ defmodule PexTest do
       end
     end
 
-    test "calls custom halt function when error_mode is function" do
-      halt_fn = fn errors -> {:custom_error, errors} end
-      
+    test "calls custom function when error_mode is function/1" do
+      func = fn key -> {key, key} end
+
       schema = %{name: [type: :string, required: true]}
       params = %{}
 
-      result = Pex.run(schema, params, error_mode: halt_fn)
-      assert {:custom_error, _errors} = result
+      result = Pex.run(schema, params, error_mode: func)
+      assert %{name: :name} = result
     end
 
-    test "returns strict error tuples when error_mode: :strict (default)" do
+    test "calls custom function when error_mode is function/2" do
+      func = fn key, errors -> {key, errors} end
+
       schema = %{name: [type: :string, required: true]}
       params = %{}
 
-      result = Pex.run(schema, params, error_mode: :strict)
-      # Current implementation behavior - error gets included in the result map
-      assert Map.has_key?(result, :error)
+      result = Pex.run(schema, params, error_mode: func)
+      assert %{name: ["required"]} = result
     end
 
-    test "error_mode defaults to :strict when not specified" do
+    test "calls custom function when error_mode is function/3" do
+      func = fn key, errors, params -> {key, [errors, params]} end
+
       schema = %{name: [type: :string, required: true]}
+      params = %{}
+
+      result = Pex.run(schema, params, error_mode: func)
+      assert %{name: [["required"], %{}]} = result
+    end
+
+    test "returns strict error tuples when error_mode: :strict" do
+      schema = %{name: [type: :string, required: true]}
+      params = %{}
+
+      assert %{name: {:error, ["required"]}} = Pex.run(schema, params, error_mode: :strict)
+    end
+
+    test "error_mode defaults to :fallback when not specified" do
+      schema = %{name: [type: :string, required: true, default: "Yes"]}
       params = %{}
 
       result_default = Pex.run(schema, params)
-      result_explicit = Pex.run(schema, params, error_mode: :strict)
-      
+      result_explicit = Pex.run(schema, params, error_mode: :fallback)
+
       assert result_default == result_explicit
     end
   end
@@ -346,12 +360,7 @@ defmodule PexTest do
       schema = %{name: [type: :string, required: true, min: 10]}
       params = %{}
 
-      result = Pex.run(schema, params)
-      # Should return error tuple in the map (current implementation behavior)
-      assert Map.has_key?(result, :error)
-      error_value = Map.get(result, :error)
-      assert is_list(error_value)
-      assert "required" in error_value
+      assert %{name: {:error, ["required"]}} = Pex.run(schema, params, error_mode: :strict)
     end
 
     test "handles deeply nested schemas" do
