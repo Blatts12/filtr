@@ -95,7 +95,7 @@ defmodule Pex.LiveView do
         socket =
           socket
           |> assign(pex: pex_params)
-          |> attach_hook(socket, :handle_params, &handle_pex_params/3)
+          |> attach_hook(:pex, :handle_params, &handle_pex_params/3)
 
         {:cont, socket}
       end
