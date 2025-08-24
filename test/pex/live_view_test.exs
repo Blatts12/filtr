@@ -81,6 +81,60 @@ defmodule Pex.LiveViewTest do
     module.run(lv, fn socket -> {:reply, socket.assigns, socket} end)
   end
 
+  describe "__using__ macro" do
+    defmodule TestLiveView do
+      use Phoenix.LiveView, namespace: Pex
+
+      use Pex.LiveView,
+        schema: %{
+          test_param: [type: :string, default: "default_value"]
+        }
+
+      @impl true
+      def render(assigns), do: ~H""
+
+      @impl true
+      def mount(_params, _session, socket), do: {:ok, socket}
+
+      @impl true
+      def handle_params(_params, _url, socket), do: {:noreply, socket}
+    end
+
+    test "defines on_mount/4 function" do
+      assert function_exported?(TestLiveView, :on_mount, 4)
+    end
+
+    test "accepts different error_mode options" do
+      defmodule StrictLiveView do
+        use Phoenix.LiveView, namespace: Pex
+
+        use Pex.LiveView,
+          schema: %{param: [type: :string, default: "test"]},
+          error_mode: :strict
+      end
+
+      assert function_exported?(StrictLiveView, :on_mount, 4)
+    end
+
+    test "raises error when schema is missing" do
+      assert_raise RuntimeError, "schema is required", fn ->
+        defmodule InvalidLiveView do
+          use Phoenix.LiveView, namespace: Pex
+          use Pex.LiveView
+        end
+      end
+    end
+
+    test "raises error when provided with invalid error_mode" do
+      assert_raise ArgumentError, ~r/error_mode must be one of/, fn ->
+        defmodule InvalidLiveView do
+          use Phoenix.LiveView, namespace: Pex
+          use Pex.LiveView, error_mode: :invalid, schema: %{}
+        end
+      end
+    end
+  end
+
   defp init_session(_) do
     {:ok, conn: Plug.Test.init_test_session(build_conn(), %{})}
   end

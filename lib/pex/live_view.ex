@@ -75,9 +75,15 @@ defmodule Pex.LiveView do
   alias Phoenix.LiveView.Socket
   alias Phoenix.Component
 
+  @valid_error_modes [:strict, :fallback, :raise]
+
   defmacro __using__(opts) do
     schema = Keyword.get(opts, :schema) || raise "schema is required"
     error_mode = Keyword.get(opts, :error_mode, :fallback)
+
+    unless error_mode in @valid_error_modes or is_function(error_mode) do
+      raise ArgumentError, "error_mode must be one of: #{inspect(@valid_error_modes)}"
+    end
 
     quote do
       @pex_schema unquote(schema)

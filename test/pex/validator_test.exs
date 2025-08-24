@@ -286,7 +286,8 @@ defmodule Pex.ValidatorTest do
     test "custom validation function returning :error" do
       validator = fn _value -> :error end
 
-      assert Validator.run("test", :string, validate: validator) == :error
+      assert Validator.run("test", :string, validate: validator) ==
+               {:error, ["validation failed"]}
     end
 
     test "custom validation function returning {:error, message}" do
