@@ -67,6 +67,7 @@ defmodule Pex.Decorator do
 
   use Decorator.Define, pex: 1
 
+  @spec pex(opts :: Keyword.t(), body :: Macro.t(), context :: any()) :: Macro.t()
   def pex(opts, body, %{args: [_conn, params]}) do
     schema = Keyword.get(opts, :schema) || raise "schema is required"
     error_mode = Keyword.get(opts, :error_mode, :fallback)
