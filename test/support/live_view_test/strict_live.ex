@@ -1,4 +1,5 @@
 defmodule Pex.LiveViewTest.StrictLive do
+  @moduledoc false
   use Phoenix.LiveView, namespace: Pex
 
   use Pex.LiveView,

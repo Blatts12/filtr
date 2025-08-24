@@ -1,8 +1,9 @@
 defmodule Pex.CasterTest do
   use ExUnit.Case
-  doctest Pex.Caster
 
   alias Pex.Caster
+
+  doctest Caster
 
   describe "run/2 and run/3" do
     test "returns ok tuple for successful casting" do

@@ -229,8 +229,7 @@ defmodule Pex.Caster do
   end
 
   # List
-  defp cast(value, :list) when is_binary(value),
-    do: cast(String.split(value, ",", trim: true), :list)
+  defp cast(value, :list) when is_binary(value), do: cast(String.split(value, ",", trim: true), :list)
 
   defp cast(values, :list) when is_list(values), do: {:ok, values}
   defp cast(_value, :list), do: {:error, "invalid list"}
@@ -240,7 +239,8 @@ defmodule Pex.Caster do
     results = Enum.map(value, &cast(&1, type))
 
     errors =
-      Enum.filter(results, &match?({:error, _}, &1))
+      results
+      |> Enum.filter(&match?({:error, _}, &1))
       |> Enum.map(&elem(&1, 1))
       |> Enum.uniq()
 

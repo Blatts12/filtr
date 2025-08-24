@@ -15,5 +15,5 @@ defmodule Pex.LiveViewTest.LiveRouter do
     live("/raise", RaiseLive)
   end
 
-  def session(%Plug.Conn{}, extra), do: Map.merge(extra, %{"called" => true})
+  def session(%Plug.Conn{}, extra), do: Map.put(extra, "called", true)
 end

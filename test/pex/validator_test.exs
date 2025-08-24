@@ -1,8 +1,9 @@
 defmodule Pex.ValidatorTest do
   use ExUnit.Case
-  doctest Pex.Validator
 
   alias Pex.Validator
+
+  doctest Validator
 
   describe "run/2" do
     test "returns ok tuple for valid value with no constraints" do

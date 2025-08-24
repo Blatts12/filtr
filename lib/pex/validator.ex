@@ -192,7 +192,8 @@ defmodule Pex.Validator do
 
   defp valid_value(value, type, opts) do
     errors =
-      Enum.map(opts, fn {opt, check} -> valid?(opt, value, type, check) end)
+      opts
+      |> Enum.map(fn {opt, check} -> valid?(opt, value, type, check) end)
       |> Enum.filter(&match?({:error, _}, &1))
       |> Enum.map(&elem(&1, 1))
 
@@ -306,14 +307,12 @@ defmodule Pex.Validator do
   end
 
   ## Positive (integer/float)
-  defp valid?(:positive, value, type, true)
-       when type in [:integer, :float] and is_number(value) do
+  defp valid?(:positive, value, type, true) when type in [:integer, :float] and is_number(value) do
     if value > 0, do: :ok, else: {:error, "must be positive"}
   end
 
   ## Negative (integer/float)
-  defp valid?(:negative, value, type, true)
-       when type in [:integer, :float] and is_number(value) do
+  defp valid?(:negative, value, type, true) when type in [:integer, :float] and is_number(value) do
     if value < 0, do: :ok, else: {:error, "must be negative"}
   end
 
@@ -377,7 +376,7 @@ defmodule Pex.Validator do
 
   ## non-empty
   defp valid?(:non_empty, value, :list, true) when is_list(value) do
-    if value != [], do: :ok, else: {:error, "must not be empty"}
+    if value == [], do: {:error, "must not be empty"}, else: :ok
   end
 
   ## in (all values must be in provided list)
@@ -396,7 +395,7 @@ defmodule Pex.Validator do
 
   # Not nil validation (different from required - allows empty strings)
   defp valid?(:not_nil, value, _type, true) do
-    if value != nil, do: :ok, else: {:error, "must not be nil"}
+    if value == nil, do: {:error, "must not be nil"}, else: :ok
   end
 
   # Custom validation function

@@ -4,9 +4,10 @@ defmodule Pex.LiveViewTest do
   import Phoenix.ConnTest
   import Phoenix.LiveViewTest
 
-  doctest Pex.LiveView
-
   alias Pex.LiveViewTest.Endpoint
+  alias Plug.Conn.WrapperError
+
+  doctest Pex.LiveView
 
   @endpoint Endpoint
 
@@ -60,13 +61,13 @@ defmodule Pex.LiveViewTest do
     setup [:init_session]
 
     test "raises an error with no params - required params missing", %{conn: conn} do
-      assert_raise Plug.Conn.WrapperError, ~r/Validation failed/, fn ->
+      assert_raise WrapperError, ~r/Validation failed/, fn ->
         {:ok, _lv, _html} = live(conn, "/raise")
       end
     end
 
     test "raises an error with invalid params", %{conn: conn} do
-      assert_raise Plug.Conn.WrapperError, ~r/Validation failed/, fn ->
+      assert_raise WrapperError, ~r/Validation failed/, fn ->
         {:ok, _lv, _html} = live(conn, "/raise?query=elixir&limit=invalid")
       end
     end

@@ -1,5 +1,6 @@
 defmodule PexTest do
   use ExUnit.Case
+
   doctest Pex
 
   describe "run/2" do
