@@ -12,7 +12,8 @@ defmodule Pex.MixProject do
       test_coverage: [tool: ExCoveralls],
       preferred_cli_env: [
         coveralls: :test,
-        "coveralls.html": :test
+        "coveralls.html": :test,
+        "coveralls.detail": :test
       ]
     ]
   end

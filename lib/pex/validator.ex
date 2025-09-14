@@ -196,6 +196,7 @@ defmodule Pex.Validator do
       |> Enum.map(fn {opt, check} -> valid?(opt, value, type, check) end)
       |> Enum.filter(&match?({:error, _}, &1))
       |> Enum.map(&elem(&1, 1))
+      |> List.flatten()
 
     if errors == [],
       do: :ok,
@@ -414,6 +415,5 @@ defmodule Pex.Validator do
   defp valid?(:required, _value, _type, _check), do: :ok
 
   defp valid_type?(type) when type in @supported_types, do: :ok
-  defp valid_type?({:list, type}) when type in @supported_types, do: :ok
   defp valid_type?(type), do: raise("Unsupported type: #{inspect(type)}")
 end

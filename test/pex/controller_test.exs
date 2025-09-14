@@ -51,8 +51,8 @@ defmodule Pex.ControllerTest do
     end
   end
 
-  describe "param macro" do
-    test "accumulates parameter definitions" do
+  describe "macro" do
+    test "controller functions are defined" do
       assert function_exported?(TestController, :create, 2)
       assert function_exported?(TestController, :search, 2)
       assert function_exported?(TestController, :index, 2)
@@ -138,6 +138,15 @@ defmodule Pex.ControllerTest do
 
       assert validated_params.name == "John"
     end
+
+    test "returns tuple with error with invalid parameters" do
+      conn = %{}
+      params = %{"age" => "25"}
+
+      {^conn, errored_params} = StrictModeController.create(conn, params)
+
+      assert errored_params.name == {:error, ["required"]}
+    end
   end
 
   describe "raise error mode" do
@@ -149,36 +158,59 @@ defmodule Pex.ControllerTest do
 
       assert validated_params.name == "John"
     end
+
+    test "raises with invalid parameters" do
+      conn = %{}
+      params = %{"age" => "25"}
+
+      assert_raise ArgumentError, "Validation failed for name: required", fn ->
+        RaiseModeController.create(conn, params)
+      end
+    end
   end
 
-  describe "error mode validation" do
+  describe "render module" do
+    test "renders without params" do
+      module =
+        defmodule TestFallbackController do
+          use Pex.Controller, error_mode: :fallback
+        end
+
+      assert {_, _, _, :ok} = module
+    end
+
+    test "renders with params" do
+      module =
+        defmodule TestFallbackParamController do
+          use Pex.Controller, error_mode: :fallback
+
+          param :user, :string, required: true
+
+          def test(conn, params) do
+            {conn, params}
+          end
+        end
+
+      assert {_, _, _, {:test, 2}} = module
+    end
+
+    test "renders and ignores param without function" do
+      module =
+        defmodule TestFallbackNoParamController do
+          use Pex.Controller, error_mode: :fallback
+
+          param :user, :string, required: true
+        end
+
+      assert {_, _, _, :ok} = module
+    end
+
     test "raises on invalid error mode" do
-      assert_raise ArgumentError, ~r/error_mode must be one of/, fn ->
-        defmodule InvalidErrorModeController do
+      assert_raise ArgumentError, fn ->
+        defmodule TestInvalidErrorModeController do
           use Pex.Controller, error_mode: :invalid
         end
       end
-    end
-
-    test "accepts valid error modes" do
-      assert Code.ensure_loaded?(TestController)
-      assert Code.ensure_loaded?(StrictModeController)
-      assert Code.ensure_loaded?(RaiseModeController)
-    end
-  end
-
-  describe "function overriding behavior" do
-    test "original functions become overridable" do
-      # Test that the wrapper functions call the original implementation
-      conn = %{}
-      params = %{"name" => "John", "age" => "25"}
-
-      {returned_conn, returned_params} = TestController.create(conn, params)
-
-      assert returned_conn == conn
-      assert is_map(returned_params)
-      assert returned_params.name == "John"
-      assert returned_params.age == 25
     end
   end
 end

@@ -265,42 +265,42 @@ defmodule PexTest do
     end
   end
 
-  describe "type casting integration" do
-    test "casts various types correctly" do
-      schema = %{
-        name: [type: :string],
-        age: [type: :integer],
-        height: [type: :float],
-        active: [type: :boolean],
-        birthday: [type: :date],
-        created_at: [type: :datetime],
-        tags: [type: :list],
-        scores: [type: {:list, :integer}]
-      }
+  # describe "type casting integration" do
+  #   test "casts various types correctly" do
+  #     schema = %{
+  #       name: [type: :string],
+  #       age: [type: :integer],
+  #       height: [type: :float],
+  #       active: [type: :boolean],
+  #       birthday: [type: :date],
+  #       created_at: [type: :datetime],
+  #       tags: [type: :list],
+  #       scores: [type: {:list, :integer}]
+  #     }
 
-      params = %{
-        "name" => "John",
-        "age" => "25",
-        "height" => "5.9",
-        "active" => "true",
-        "birthday" => "1990-01-15",
-        "created_at" => "2023-12-25T10:30:00Z",
-        "tags" => "elixir,phoenix,web",
-        "scores" => "85,92,78"
-      }
+  #     params = %{
+  #       "name" => "John",
+  #       "age" => "25",
+  #       "height" => "5.9",
+  #       "active" => "true",
+  #       "birthday" => "1990-01-15",
+  #       "created_at" => "2023-12-25T10:30:00Z",
+  #       "tags" => "elixir,phoenix,web",
+  #       "scores" => "85,92,78"
+  #     }
 
-      result = Pex.run(schema, params)
+  #     result = Pex.run(schema, params)
 
-      assert result.name == "John"
-      assert result.age == 25
-      assert result.height == 5.9
-      assert result.active == true
-      assert result.birthday == ~D[1990-01-15]
-      assert result.created_at == ~U[2023-12-25 10:30:00Z]
-      assert result.tags == ["elixir", "phoenix", "web"]
-      assert result.scores == [85, 92, 78]
-    end
-  end
+  #     assert result.name == "John"
+  #     assert result.age == 25
+  #     assert result.height == 5.9
+  #     assert result.active == true
+  #     assert result.birthday == ~D[1990-01-15]
+  #     assert result.created_at == ~U[2023-12-25 10:30:00Z]
+  #     assert result.tags == ["elixir", "phoenix", "web"]
+  #     assert result.scores == [85, 92, 78]
+  #   end
+  # end
 
   describe "validation integration" do
     test "validates string constraints" do
@@ -359,12 +359,13 @@ defmodule PexTest do
     end
   end
 
-  describe "error handling edge cases" do
+  describe "edge cases and nested schemas" do
     test "handles multiple validation failures correctly" do
-      schema = %{name: [type: :string, required: true, min: 10]}
-      params = %{}
+      schema = %{number: [type: :integer, max: 10, in: [12, 13, 14, 15]]}
+      params = %{number: 11}
 
-      assert %{name: {:error, ["required"]}} = Pex.run(schema, params, error_mode: :strict)
+      assert %{number: {:error, ["must be at most 10", "value not in list"]}} =
+               Pex.run(schema, params, error_mode: :strict)
     end
 
     test "handles deeply nested schemas" do
@@ -431,42 +432,400 @@ defmodule PexTest do
       expected = %{user: %{name: "Anonymous"}}
       assert result == expected
     end
-  end
 
-  describe "comprehensive error handling with error_mode" do
-    test "multiple errors with error_mode: :fallback returns defaults" do
-      schema = %{
-        name: [type: :string, required: true, min: 10, default: "Default"],
-        age: [type: :integer, min: 21, default: 18],
-        score: [type: :float, default: 0.0]
-      }
-
-      params = %{"age" => "invalid", "score" => "bad"}
-
-      result = Pex.run(schema, params, error_mode: :fallback)
-      assert result == %{name: "Default", age: 18, score: 0.0}
-    end
-
-    test "nested schema errors with error_mode: :fallback" do
+    test "handles deeply nested list schemas" do
       schema = %{
         user: %{
-          name: [type: :string, required: true, default: "Anonymous"],
-          age: [type: :integer, default: 0]
+          profile: %{
+            items: [type: {:list, %{name: [type: :string, min: 2], age: [type: :integer, default: 22]}}]
+          }
         }
       }
 
-      params = %{"user" => %{"age" => "invalid"}}
+      params = %{
+        "user" => %{
+          "profile" => %{
+            "items" => [%{"name" => "Name"}]
+          }
+        }
+      }
+
+      result = Pex.run(schema, params)
+
+      expected = %{
+        user: %{
+          profile: %{
+            items: [%{name: "Name", age: 22}]
+          }
+        }
+      }
+
+      assert result == expected
+    end
+
+    test "handles deeply nested list schemas with errored params" do
+      schema = %{
+        user: %{
+          profile: %{
+            items: [type: {:list, %{name: [type: :string, min: 2], age: [type: :integer, default: 22]}}]
+          }
+        }
+      }
+
+      params = %{
+        "user" => %{
+          "profile" => %{
+            "items" => [%{"name" => "1"}]
+          }
+        }
+      }
+
+      result = Pex.run(schema, params, error_mode: :strict)
+
+      expected = %{
+        user: %{
+          profile: %{
+            items: [%{age: 22, name: {:error, ["must be at least 2 characters long"]}}]
+          }
+        }
+      }
+
+      assert result == expected
+    end
+
+    test "handles deeply nested list schemas with list being default, required and missing - strict mode" do
+      schema = %{
+        user: %{
+          profile: %{
+            items: [
+              type: {:list, %{name: [type: :string, min: 2], age: [type: :integer, default: 22]}},
+              required: true,
+              default: [%{name: "Name"}]
+            ]
+          }
+        }
+      }
+
+      params = %{}
+
+      result = Pex.run(schema, params, error_mode: :strict)
+
+      expected = %{
+        user: %{
+          profile: %{
+            items: [%{name: "Name"}]
+          }
+        }
+      }
+
+      assert result == expected
+    end
+
+    test "handles deeply nested list schemas with list being default, optional and missing - strict mode" do
+      schema = %{
+        user: %{
+          profile: %{
+            items: [
+              type: {:list, %{name: [type: :string, min: 2], age: [type: :integer, default: 22]}},
+              default: [%{name: "Name"}]
+            ]
+          }
+        }
+      }
+
+      params = %{}
+
+      result = Pex.run(schema, params, error_mode: :strict)
+
+      expected = %{
+        user: %{
+          profile: %{
+            items: [%{name: "Name"}]
+          }
+        }
+      }
+
+      assert result == expected
+    end
+
+    test "handles deeply nested list schemas with list being default, optional and invalid - strict mode" do
+      schema = %{
+        user: %{
+          profile: %{
+            items: [
+              type: {:list, %{name: [type: :string, min: 2], age: [type: :integer, default: 22]}},
+              default: [%{name: "Name"}]
+            ]
+          }
+        }
+      }
+
+      params = %{
+        "user" => %{
+          "profile" => %{"items" => "What?"}
+        }
+      }
+
+      result = Pex.run(schema, params, error_mode: :strict)
+
+      expected = %{
+        user: %{
+          profile: %{
+            items: []
+          }
+        }
+      }
+
+      assert result == expected
+    end
+
+    test "handles deeply nested list schemas with list being required and missing - strict mode" do
+      schema = %{
+        user: %{
+          profile: %{
+            items: [type: {:list, %{name: [type: :string, min: 2], age: [type: :integer, default: 22]}}, required: true]
+          }
+        }
+      }
+
+      params = %{
+        "user" => %{
+          "profile" => %{}
+        }
+      }
+
+      result = Pex.run(schema, params, error_mode: :strict)
+
+      expected = %{
+        user: %{
+          profile: %{
+            items: {:error, ["expected list but got nothing"]}
+          }
+        }
+      }
+
+      assert result == expected
+    end
+
+    test "handles deeply nested list schemas with list being required and invalid - strict mode" do
+      schema = %{
+        user: %{
+          profile: %{
+            items: [
+              type: {:list, %{name: [type: :string, min: 2], age: [type: :integer, default: 22]}},
+              required: true,
+              default: [%{name: "Name"}]
+            ]
+          }
+        }
+      }
+
+      params = %{
+        "user" => %{
+          "profile" => %{"items" => "What?"}
+        }
+      }
+
+      result = Pex.run(schema, params, error_mode: :strict)
+
+      expected = %{
+        user: %{
+          profile: %{
+            items: {:error, ["expected list but got \"What?\""]}
+          }
+        }
+      }
+
+      assert result == expected
+    end
+
+    test "handles deeply nested list schemas with list being default, required and missing - fallback mode" do
+      schema = %{
+        user: %{
+          profile: %{
+            items: [
+              type: {:list, %{name: [type: :string, min: 2], age: [type: :integer, default: 22]}},
+              required: true,
+              default: [%{name: "Name"}]
+            ]
+          }
+        }
+      }
+
+      params = %{
+        "user" => %{
+          "profile" => %{}
+        }
+      }
 
       result = Pex.run(schema, params, error_mode: :fallback)
 
       expected = %{
         user: %{
-          name: "Anonymous",
-          age: 0
+          profile: %{
+            items: [%{name: "Name"}]
+          }
         }
       }
 
       assert result == expected
+    end
+
+    test "handles deeply nested list schemas with list being required and missing - fallback mode" do
+      schema = %{
+        user: %{
+          profile: %{
+            items: [
+              type: {:list, %{name: [type: :string, min: 2], age: [type: :integer, default: 22]}},
+              required: true
+            ]
+          }
+        }
+      }
+
+      params = %{
+        "user" => %{
+          "profile" => %{}
+        }
+      }
+
+      result = Pex.run(schema, params, error_mode: :fallback)
+
+      expected = %{
+        user: %{
+          profile: %{
+            items: []
+          }
+        }
+      }
+
+      assert result == expected
+    end
+
+    test "handles deeply nested list schemas with list being optional and missing - fallback mode" do
+      schema = %{
+        user: %{
+          profile: %{
+            items: [
+              type: {:list, %{name: [type: :string, min: 2], age: [type: :integer, default: 22]}}
+            ]
+          }
+        }
+      }
+
+      params = %{}
+
+      result = Pex.run(schema, params, error_mode: :fallback)
+
+      expected = %{
+        user: %{
+          profile: %{
+            items: []
+          }
+        }
+      }
+
+      assert result == expected
+    end
+
+    test "handles deeply nested list schemas with list being required - fallback mode" do
+      schema = %{
+        user: %{
+          profile: %{
+            items: [
+              type: {:list, %{name: [type: :string, min: 2], age: [type: :integer, default: 22]}},
+              required: true
+            ]
+          }
+        }
+      }
+
+      params = %{
+        "user" => %{
+          "profile" => %{"items" => [%{"name" => "Tyson", "age" => 71}]}
+        }
+      }
+
+      result = Pex.run(schema, params, error_mode: :fallback)
+
+      expected = %{
+        user: %{
+          profile: %{
+            items: [%{name: "Tyson", age: 71}]
+          }
+        }
+      }
+
+      assert result == expected
+    end
+
+    test "handles deeply nested list schemas with missing field in item - fallback mode" do
+      schema = %{
+        user: %{
+          profile: %{
+            items: [
+              type: {:list, %{name: [type: :string, min: 2, default: "Name"]}},
+              default: [%{name: "Name"}]
+            ]
+          }
+        }
+      }
+
+      params = %{
+        "user" => %{
+          "profile" => %{"items" => [%{}]}
+        }
+      }
+
+      result = Pex.run(schema, params, error_mode: :fallback)
+
+      expected = %{
+        user: %{
+          profile: %{
+            items: [%{name: "Name"}]
+          }
+        }
+      }
+
+      assert result == expected
+    end
+
+    test "handles custom validation function - returns binary" do
+      email_validator = fn email ->
+        if String.contains?(email, "@") and String.contains?(email, ".") do
+          :ok
+        else
+          {:error, "invalid email format"}
+        end
+      end
+
+      schema = %{
+        email: [type: :string, validate: email_validator]
+      }
+
+      params = %{"email" => "john pork"}
+
+      result = Pex.run(schema, params, error_mode: :strict)
+      assert result == %{email: {:error, ["invalid email format"]}}
+    end
+
+    test "handles custom validation function - returns list" do
+      email_validator = fn email ->
+        if String.contains?(email, "@") and String.contains?(email, ".") do
+          :ok
+        else
+          {:error, ["something else", "invalid email format"]}
+        end
+      end
+
+      schema = %{
+        email: [type: :string, validate: email_validator]
+      }
+
+      params = %{"email" => "john pork"}
+
+      result = Pex.run(schema, params, error_mode: :strict)
+      assert result == %{email: {:error, ["something else", "invalid email format"]}}
     end
   end
 

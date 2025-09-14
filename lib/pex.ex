@@ -246,19 +246,33 @@ defmodule Pex do
 
     Map.new(schema, fn
       {key, nested_schema} when is_map(nested_schema) ->
-        values = get_value(params, key)
+        values = get_value(params, key) || %{}
         {key, run(nested_schema, values, run_opts)}
 
       {key, opts} ->
         {type, opts} = Keyword.pop(opts, :type, :__none__)
         {default, opts} = Keyword.pop(opts, :default, :__none__)
-        value = get_value(params, key, default)
 
         case type do
           {:list, nested_schema} when is_map(nested_schema) ->
-            handle_list_with_schema(key, value, nested_schema, run_opts, error_mode, default, params)
+            value = get_value(params, key)
+            required? = opts[:required]
+
+            opts = [
+              run_opts: run_opts,
+              error_mode: error_mode,
+              default: default,
+              params: params,
+              key: key
+            ]
+
+            if required?,
+              do: {key, handle_required_list_with_schema(value, nested_schema, opts)},
+              else: {key, handle_optional_list_with_schema(value, nested_schema, opts)}
 
           _ ->
+            value = get_value(params, key, default)
+
             with {:ok, casted_value} <- Caster.run(value, type, opts),
                  {:ok, validated_value} <- Validator.run(casted_value, type, opts) do
               {key, validated_value}
@@ -270,23 +284,48 @@ defmodule Pex do
     end)
   end
 
-  defp handle_list_with_schema(key, value, nested_schema, run_opts, error_mode, default, params) do
-    case value do
-      nil ->
-        default_value = get_default(default, params, key)
-        {key, default_value}
+  defp handle_required_list_with_schema(value, schema, opts) do
+    default = opts[:default]
+    error_mode = opts[:error_mode]
 
-      list when is_list(list) ->
-        processed_list =
-          Enum.map(list, fn item ->
-            run(nested_schema, item, run_opts)
-          end)
+    case {error_mode, default, value} do
+      {:fallback, :__none__, nil} ->
+        []
 
-        {key, processed_list}
+      {_, :__none__, nil} ->
+        {:error, ["expected list but got nothing"]}
 
-      _ ->
-        error = {:error, "expected list but got #{inspect(value)}"}
-        handle_error_with_mode(error, error_mode, default, params, key)
+      {_, default, nil} ->
+        get_default(default, opts[:params], opts[:key])
+
+      {_, _, list} when is_list(list) ->
+        Enum.map(list, fn item ->
+          run(schema, item, opts[:run_opts])
+        end)
+
+      {_, _, value} ->
+        {:error, ["expected list but got #{inspect(value)}"]}
+    end
+  end
+
+  defp handle_optional_list_with_schema(value, schema, opts) do
+    default = opts[:default]
+    error_mode = opts[:error_mode]
+
+    case {error_mode, default, value} do
+      {_, :__none__, nil} ->
+        []
+
+      {_, default, nil} ->
+        get_default(default, opts[:params], opts[:key])
+
+      {_, _, list} when is_list(list) ->
+        Enum.map(list, fn item ->
+          run(schema, item, opts[:run_opts])
+        end)
+
+      {_, _, _} ->
+        []
     end
   end
 
