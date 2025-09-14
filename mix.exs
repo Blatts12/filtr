@@ -37,11 +37,10 @@ defmodule Pex.MixProject do
     [
       {:phoenix, "#{phoenix_version()}", optional: true},
       {:phoenix_live_view, "#{live_view_version()}", optional: true},
-      {:decorator, "~> 1.4"},
       {:ex_doc, "~> 0.31", only: :dev, runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:styler, "~> 1.5", only: [:dev, :test], runtime: false},
+      {:quokka, "~> 2.11", only: [:dev, :test], runtime: false},
       {:doctor, "~> 0.22.0", only: [:dev]},
       {:floki, ">= 0.30.0", only: :test},
       {:lazy_html, ">= 0.1.0", only: :test},

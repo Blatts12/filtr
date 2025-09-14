@@ -1,18 +1,13 @@
 defmodule Pex.LiveViewTest.FallbackLive do
-  @moduledoc false
   use Phoenix.LiveView, namespace: Pex
+  use Pex.LiveView, error_mode: :fallback
 
-  use Pex.LiveView,
-    error_mode: :fallback,
-    schema: %{
-      query: [type: :string, required: true],
-      limit: [type: :integer, min: 5, default: 10]
-    }
+  param :query, :string, required: true
+  param :limit, :integer, min: 5, default: 10
 
   @impl true
   def render(assigns) do
-    ~H"""
-    """
+    ~H""
   end
 
   @impl true

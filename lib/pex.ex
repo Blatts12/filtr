@@ -8,12 +8,71 @@ defmodule Pex do
   - **Declarative Schemas** - Define parameter validation rules using simple maps
   - **Type Casting** - Automatic conversion between string parameters and Elixir types
   - **Custom Validators** - Built-in validators plus support for custom validation functions
-  - **Decorator Integration** - Clean controller annotations using the decorator package
+  - **Attr-Style Integration** - Clean parameter definitions using Phoenix Component-like `param` syntax
   - **Phoenix Integration** - Seamless integration with Phoenix controllers and LiveViews
   - **Comprehensive Error Handling** - Detailed error messages for validation failures
   - **Error Mode Control** - Flexible error handling with :fallback, :strict, :raise, and custom halt options
 
-  ## Basic Usage
+  ## Phoenix Integration
+
+  ### Controller Integration
+
+  Use `Pex.Controller` with the `param` macro for clean parameter definitions:
+
+      defmodule MyAppWeb.UserController do
+        use MyAppWeb, :controller
+        use Pex.Controller
+
+        param :name, :string, required: true
+        param :age, :integer, min: 18
+
+        def create(conn, params) do
+          # params.name is guaranteed to be a string
+          # params.age is guaranteed to be an integer >= 18
+          json(conn, %{message: "User \#{params.name} created"})
+        end
+      end
+
+  ### LiveView Integration
+
+  Use `Pex.LiveView` for automatic parameter validation in LiveViews:
+
+      defmodule MyAppWeb.SearchLive do
+        use MyAppWeb, :live_view
+        use Pex.LiveView
+
+        param :query, :string, default: ""
+        param :page, :integer, default: 1, min: 1
+        param :filters, {:list, :string}, default: []
+
+        def handle_params(_params, _uri, socket) do
+          # Access validated parameters via socket.assigns.pex
+          results = search(socket.assigns.pex.query, socket.assigns.pex.page)
+          {:noreply, assign(socket, results: results)}
+        end
+      end
+
+  ### Error Modes
+
+  Both modules support different error handling modes:
+
+      # Fallback mode (recommended) - falls back to defaults on validation errors
+      use Pex.Controller, error_mode: :fallback
+
+      # Strict mode - returns error tuples in params
+      use Pex.Controller, error_mode: :strict
+
+      # Raise mode - raises exceptions on validation errors
+      use Pex.Controller, error_mode: :raise
+
+      # Custom function mode - calls your function with errors
+      use Pex.Controller, error_mode: &MyApp.handle_validation_errors/1
+
+  ## Core Schema API
+
+  While the recommended approach is to use `Pex.Controller` and `Pex.LiveView` with the
+  `param` macro, you can also use the core `Pex.run/3` function directly for custom
+  validation scenarios:
 
       # Define a schema for your parameters
       schema = %{
@@ -104,9 +163,26 @@ defmodule Pex do
   @doc """
   Parses and validates parameters according to the provided schema.
 
-  This is the main function of the Pex library. It takes a schema definition and
+  This is the core function of the Pex library. It takes a schema definition and
   raw parameters (typically from a web request) and returns a map of validated
   and type-cast parameters.
+
+  ## Recommended Usage
+
+  For Phoenix applications, consider using `Pex.Controller` or `Pex.LiveView` with
+  the `param` macro instead of calling this function directly. This provides better
+  ergonomics and follows Phoenix conventions.
+
+      # Recommended approach
+      defmodule MyController do
+        use Pex.Controller
+        param :name, :string, required: true
+        def action(conn, params), do: # params.name is validated
+      end
+
+      # Direct usage (for custom scenarios)
+      schema = %{name: [type: :string, required: true]}
+      Pex.run(schema, %{"name" => "John"})
 
   ## Parameters
 
@@ -178,14 +254,40 @@ defmodule Pex do
         {default, opts} = Keyword.pop(opts, :default, :__none__)
         value = get_value(params, key, default)
 
-        with {:ok, casted_value} <- Caster.run(value, type, opts),
-             {:ok, validated_value} <- Validator.run(casted_value, type, opts) do
-          {key, validated_value}
-        else
-          error ->
-            handle_error_with_mode(error, error_mode, default, params, key)
+        case type do
+          {:list, nested_schema} when is_map(nested_schema) ->
+            handle_list_with_schema(key, value, nested_schema, run_opts, error_mode, default, params)
+
+          _ ->
+            with {:ok, casted_value} <- Caster.run(value, type, opts),
+                 {:ok, validated_value} <- Validator.run(casted_value, type, opts) do
+              {key, validated_value}
+            else
+              error ->
+                handle_error_with_mode(error, error_mode, default, params, key)
+            end
         end
     end)
+  end
+
+  defp handle_list_with_schema(key, value, nested_schema, run_opts, error_mode, default, params) do
+    case value do
+      nil ->
+        default_value = get_default(default, params, key)
+        {key, default_value}
+
+      list when is_list(list) ->
+        processed_list =
+          Enum.map(list, fn item ->
+            run(nested_schema, item, run_opts)
+          end)
+
+        {key, processed_list}
+
+      _ ->
+        error = {:error, "expected list but got #{inspect(value)}"}
+        handle_error_with_mode(error, error_mode, default, params, key)
+    end
   end
 
   defp get_value(params, key), do: Map.get(params, to_string(key)) || Map.get(params, key)

@@ -1,55 +1,29 @@
 defmodule Pex.LiveView do
   @moduledoc """
-  Provides Phoenix LiveView integration for parameter parsing and validation.
+  Provides Phoenix LiveView integration with attr-style parameter definitions.
 
-  This module enables seamless parameter handling in LiveViews by automatically
-  parsing and validating parameters during mount and handle_params lifecycle events.
+  This module enables parameter handling in LiveViews using a syntax similar to Phoenix
+  Components' `attr` macro, but using `param` to define query parameters with validation.
 
-  ## Usage
+  ## Parameter Definition
 
-  To use Pex with LiveViews, add it to your LiveView module:
+  Use the `param` macro to define parameters with their types and validation rules:
 
-      defmodule MyAppWeb.SearchLive do
-        use MyAppWeb, :live_view
-        use Pex.LiveView, schema: %{
-          q: [type: :string, default: ""],
-          page: [type: :integer, default: 1, min: 1],
-          filters: [type: {:list, :string}, default: []]
-        }
-
-        def mount(_params, _session, socket) do
-          {:ok, socket}
-        end
-
-        def handle_params(_params, _uri, socket) do
-          # Access validated params with socket.assigns.pex
-          search_query = socket.assigns.pex.q
-          current_page = socket.assigns.pex.page
-          {:noreply, socket}
-        end
-      end
-
-  ## Options
-
-  - `:schema` - The parameter schema definition (required)
-  - `:error_mode` - Controls error handling behavior (`:strict`, `:fallback`, `:raise`, or `function`)
-
-  ## Parameter Access
-
-  Validated parameters are available in `socket.assigns.pex`. The parameters are
-  automatically parsed and validated during both the initial mount and subsequent
-  parameter changes via `handle_params/3`.
+      param :name, :string, required: true
+      param :age, :integer, min: 0, max: 120
+      param :email, :string, pattern: ~r/@/
+      param :tags, {:list, :string}, default: []
 
   ## Example
 
-      # Basic LiveView with parameter validation
       defmodule MyAppWeb.ProductsLive do
         use MyAppWeb, :live_view
-        use Pex.LiveView, schema: %{
-          category: [type: :string, default: "all"],
-          sort: [type: :string, in: ["name", "price"], default: "name"],
-          page: [type: :integer, default: 1, min: 1]
-        }
+        use Pex.LiveView
+
+        param :category, :string, default: "all"
+        param :sort, :string, in: ["name", "price"], default: "name"
+        param :page, :integer, default: 1, min: 1
+        param :search, :string, default: "", min: 0, max: 100
 
         def handle_params(_params, _uri, socket) do
           products = load_products(socket.assigns.pex)
@@ -57,28 +31,15 @@ defmodule Pex.LiveView do
         end
 
         defp load_products(params) do
-          # params.category, params.sort, and params.page are validated
+          # params.category, params.sort, params.page, and params.search are validated
           MyApp.Products.list_products(params)
         end
       end
-
-  ## Error Handling
-
-  By default, it returns default values when validation fails. Use `:error_mode` option to
-  control error handling:
-
-      use Pex.LiveView,
-        schema: %{search: [type: :string, default: ""]},
-        error_mode: :fallback
   """
-
-  alias Phoenix.Component
-  alias Phoenix.LiveView.Socket
 
   @valid_error_modes [:strict, :fallback, :raise]
 
-  defmacro __using__(opts) do
-    schema = Keyword.get(opts, :schema) || raise "schema is required"
+  defmacro __using__(opts \\ []) do
     error_mode = Keyword.get(opts, :error_mode, :fallback)
 
     if !(error_mode in @valid_error_modes or is_function(error_mode)) do
@@ -86,25 +47,64 @@ defmodule Pex.LiveView do
     end
 
     quote do
-      @pex_schema unquote(schema)
+      import Pex.LiveView, only: [param: 2, param: 3]
 
-      @spec on_mount(:pex_params, map(), map(), Socket.t()) :: {:cont, Socket.t()}
-      def on_mount(:pex_params, params, _session, socket) do
-        pex_params = Pex.run(@pex_schema, params, error_mode: unquote(error_mode))
+      alias Phoenix.LiveView.Socket
 
-        socket =
-          socket
-          |> assign(pex: pex_params)
-          |> attach_hook(:pex, :handle_params, &handle_pex_params/3)
-
-        {:cont, socket}
-      end
+      Module.register_attribute(__MODULE__, :pex_params, accumulate: true)
+      @pex_error_mode unquote(error_mode)
+      @before_compile Pex.LiveView
 
       on_mount({__MODULE__, :pex_params})
 
-      defp handle_pex_params(params, _uri, socket) do
-        pex_params = Pex.run(@pex_schema, params, error_mode: unquote(error_mode))
-        {:cont, Component.assign(socket, pex: pex_params)}
+      @spec on_mount(:pex_params, map(), map(), Socket.t()) :: {:cont, Socket.t()}
+      def on_mount(:pex_params, params, _session, socket) do
+        {:cont, do_pex_param_on_mount(socket, params)}
+      end
+    end
+  end
+
+  @doc """
+  Defines a parameter with its type and validation options.
+
+  ## Examples
+
+      param :name, :string
+      param :age, :integer, default: 18, min: 0, max: 120
+      param :email, :string, required: true, pattern: ~r/@/
+      param :tags, {:list, :string}, default: []
+  """
+  defmacro param(name, type, opts \\ []) do
+    quote do
+      @pex_params {unquote(name), [type: unquote(type)] ++ unquote(opts)}
+    end
+  end
+
+  defmacro __before_compile__(env) do
+    pex_params = Module.get_attribute(env.module, :pex_params, [])
+
+    if Enum.empty?(pex_params) do
+      quote do
+        # No params defined, generate empty functions
+        def do_pex_param_on_mount(socket, _params), do: socket
+      end
+    else
+      pex_schema = Map.new(pex_params)
+
+      quote do
+        defp do_pex_param_on_mount(socket, params) do
+          pex_params = Pex.run(unquote(Macro.escape(pex_schema)), params, error_mode: @pex_error_mode)
+
+          socket =
+            socket
+            |> Phoenix.Component.assign(pex: pex_params)
+            |> Phoenix.LiveView.attach_hook(:pex, :handle_params, &handle_pex_params/3)
+        end
+
+        defp handle_pex_params(params, _uri, socket) do
+          pex_params = Pex.run(unquote(Macro.escape(pex_schema)), params, error_mode: @pex_error_mode)
+          {:cont, Phoenix.Component.assign(socket, pex: pex_params)}
+        end
       end
     end
   end

@@ -6,8 +6,8 @@ defmodule Pex.LiveViewTest.LiveRouter do
   import Phoenix.LiveView.Router
 
   alias Pex.LiveViewTest.FallbackLive
-  alias Pex.LiveViewTest.RaiseLive
   alias Pex.LiveViewTest.StrictLive
+  alias Pex.LiveViewTest.RaiseLive
 
   live_session :pex do
     live("/fallback", FallbackLive)
@@ -15,5 +15,5 @@ defmodule Pex.LiveViewTest.LiveRouter do
     live("/raise", RaiseLive)
   end
 
-  def session(%Plug.Conn{}, extra), do: Map.put(extra, "called", true)
+  def session(%Plug.Conn{}, extra), do: Map.merge(extra, %{"called" => true})
 end
