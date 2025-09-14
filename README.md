@@ -132,7 +132,7 @@ defmodule MyAppWeb.SearchController do
   # Nested schema
   param :user, %{id: [type: :string]}
 
-  # List of schemas
+  # List of schema
   param :users, [%{id: [type: :string]}]
 
   def index(conn, params) do
@@ -246,7 +246,7 @@ Use the `:error_mode` option to control how validation errors are handled:
 
 #### Fallback Mode (Recommended and Default)
 
-Use `:error_mode: :fallback` for graceful fallback to defaults or `nil` if default is not provided:
+Use `error_mode: :fallback` for graceful fallback to defaults or `nil` if default is not provided:
 
 ```elixir
 defmodule MyAppWeb.SearchController do
@@ -288,7 +288,7 @@ end
 
 #### Raise Mode
 
-Use `:error_mode: :raise` to raise exceptions on validation failures:
+Use `error_mode: :raise` to raise exceptions on validation failures:
 
 ```elixir
 defmodule MyAppWeb.AdminController do
@@ -306,7 +306,7 @@ end
 
 #### Custom Function
 
-Use `:error_mode: function` to provide custom error handling:
+Use `error_mode: function` to provide custom error handling:
 
 ```elixir
 defmodule MyAppWeb.ApiController do
