@@ -30,7 +30,7 @@ To ensure proper formatting of the `param` macro calls, add Pex to your `.format
 
 ```elixir
 # .formatter.exs
-[import_deps: [..., :pex],  # Add :pex to the list]
+[import_deps: [..., :pex]] # Add :pex to the list
 ```
 
 ## Quick Start
@@ -129,6 +129,12 @@ defmodule MyAppWeb.SearchController do
   # List parameter
   param :tags, {:list, :string}, default: []
 
+  # Nested schema
+  param :user, %{id: [type: :string]}
+
+  # List of schemas
+  param :users, [%{id: [type: :string]}]
+
   def index(conn, params) do
     # All params are validated and accessible as params.query, params.limit, etc.
     render(conn, "index.html", params: params)
@@ -149,7 +155,8 @@ Pex supports the following built-in types:
 - `:date` - Date values (ISO8601 format)
 - `:datetime` - DateTime values (ISO8601 format)
 - `:list` - List of strings
-- `{:list, type}` - List of specified type
+- `{:list, type}` - List of specified type or schema
+- `%{key: [type: :string]}` - Nested schema
 
 ### Schema Options
 
