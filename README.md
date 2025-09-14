@@ -333,37 +333,6 @@ defmodule MyAppWeb.ApiController do
 end
 ```
 
-## Advanced Features
-
-### Nested Parameter Validation
-
-While the attr-style syntax focuses on flat parameters, you can still use the core `Pex.run/3` function for nested schemas:
-
-```elixir
-# For complex nested validation, use Pex.run/3 directly
-schema = %{
-  user: %{
-    name: [type: :string, required: true],
-    age: [type: :integer, min: 0]
-  },
-  settings: %{
-    theme: [type: :string, in: ["light", "dark"], default: "light"],
-    notifications: [type: :boolean, default: true]
-  }
-}
-
-params = %{
-  "user" => %{"name" => "John", "age" => "25"},
-  "settings" => %{"theme" => "dark"}
-}
-
-result = Pex.run(schema, params)
-# => %{
-#   user: %{name: "John", age: 25},
-#   settings: %{theme: "dark", notifications: true}
-# }
-```
-
 ## Testing
 
 ```bash
