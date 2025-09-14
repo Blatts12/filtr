@@ -251,7 +251,7 @@ By default, gracefully fallbacks to defaults or `nil` if default is not provided
 ```elixir
 defmodule MyAppWeb.SearchController do
   use MyAppWeb, :controller
-  use Pex.Controller, error_mode: :fallback
+  use Pex.Controller
 
   param :q, :string, default: ""
   param :page, :integer, default: 1, min: 1
@@ -270,7 +270,7 @@ Use `error_mode: :raise` to return validation errors as error tuples in the vali
 ```elixir
 defmodule MyAppWeb.UserController do
   use MyAppWeb, :controller
-  use Pex.Controller  # defaults to error_mode: :fallback
+  use Pex.Controller, error_mode: :raise
 
   param :name, :string, required: true
 
