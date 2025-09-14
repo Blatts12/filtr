@@ -246,7 +246,7 @@ Use the `:error_mode` option to control how validation errors are handled:
 
 #### Fallback Mode (Recommended and Default)
 
-Use `error_mode: :fallback` for graceful fallback to defaults or `nil` if default is not provided:
+By default, gracefully fallbacks to defaults or `nil` if default is not provided:
 
 ```elixir
 defmodule MyAppWeb.SearchController do
@@ -265,7 +265,7 @@ end
 
 #### Strict Mode
 
-By default, validation errors are returned as error tuples in the validated params:
+Use `error_mode: :raise` to return validation errors as error tuples in the validated params:
 
 ```elixir
 defmodule MyAppWeb.UserController do
