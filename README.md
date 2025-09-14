@@ -312,12 +312,11 @@ Use `error_mode: function` to provide custom error handling:
 defmodule MyAppWeb.ApiController do
   use MyAppWeb, :controller
 
-  def halt_with_errors(errors) do
-    Logger.error("API validation failed: #{inspect(errors)}")
-    {:error, :validation_failed}
-  end
+  def halt_with_errors(_key, _errors), do: :bad
+  # def halt_with_errors(key, errors, params), do: :bad
 
-  use Pex.Controller, error_mode: &__MODULE__.halt_with_errors/1
+  use Pex.Controller, error_mode: &__MODULE__.halt_with_errors/2
+  # use Pex.Controller, error_mode: &__MODULE__.halt_with_errors/3
 
   param :api_key, :string, required: true
 

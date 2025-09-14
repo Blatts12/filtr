@@ -336,18 +336,6 @@ defmodule Pex do
 
   @doc """
   Returns an empty Pex parameters map.
-
-  This function provides a consistent way to create an empty parameter map
-  that matches the type expected by Pex functions. Useful as a fallback
-  when no parameters are available.
-
-  ## Examples
-
-      Pex.empty_pex_params()
-      # => %{}
-
-      # Useful as a fallback
-      params = socket.assigns[:pex] || Pex.empty_pex_params()
   """
   @spec empty_pex_params() :: pex_params()
   def empty_pex_params, do: @empty_pex_params
