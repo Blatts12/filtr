@@ -3,7 +3,7 @@ defmodule Pex.Helpers do
 
   @spec default_error_mode() :: atom()
   def default_error_mode do
-    Application.get_env(:pex, :error_mode, :fallback)
+    Application.get_env(:pex, :error_mode) || :fallback
   end
 
   @spec plugins() :: [module()]

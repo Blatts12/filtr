@@ -3,10 +3,7 @@ defmodule Pex do
 
   alias Pex.Helpers
 
-  # @plugins Helpers.plugins()
   @type_plugin_map Helpers.type_plugin_map()
-
-  @empty_pex_params %{}
 
   @spec run(schema :: map(), params :: map()) :: map()
   @spec run(schema :: map(), params :: map(), opts :: keyword()) :: map()
@@ -147,9 +144,6 @@ defmodule Pex do
       :raise -> raise "Invalid value for #{key}: #{Enum.join(Enum.uniq(errors), ", ")}"
     end
   end
-
-  @spec empty_pex_params() :: map()
-  def empty_pex_params, do: @empty_pex_params
 
   defp get_value(params, key) do
     Map.get(params, to_string(key)) || Map.get(params, key)
