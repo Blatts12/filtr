@@ -109,6 +109,31 @@ defmodule PexTest do
       result = Pex.run(schema, params, error_mode: :strict)
       assert ["elixir", {:error, _}, "phoenix"] = result.tags
     end
+
+    test "processes list of nested map schemas" do
+      schema = %{
+        items: [
+          type: {
+            :list,
+            %{
+              name: [type: :string],
+              quantity: [type: :integer]
+            }
+          }
+        ]
+      }
+
+      params = %{
+        "items" => %{
+          "name" => "Product A",
+          "quantity" => "5"
+        }
+      }
+
+      result = Pex.run(schema, params)
+      assert result.items.name == "Product A"
+      assert result.items.quantity == 5
+    end
   end
 
   describe "error mode: fallback" do
@@ -287,9 +312,7 @@ defmodule PexTest do
 
   describe "custom cast functions" do
     test "processes custom cast function returning {:ok, value}" do
-      custom_cast = fn value, _opts ->
-        {:ok, String.upcase(value)}
-      end
+      custom_cast = fn value, _opts -> {:ok, String.upcase(value)} end
 
       schema = %{name: [type: custom_cast]}
       params = %{"name" => "john"}
@@ -299,9 +322,7 @@ defmodule PexTest do
     end
 
     test "processes custom cast function returning plain value" do
-      custom_cast = fn value, _opts ->
-        String.upcase(value)
-      end
+      custom_cast = fn value, _opts -> String.upcase(value) end
 
       schema = %{name: [type: custom_cast]}
       params = %{"name" => "john"}
@@ -311,9 +332,7 @@ defmodule PexTest do
     end
 
     test "handles custom cast function error in strict mode" do
-      custom_cast = fn _value, _opts ->
-        {:error, "custom error"}
-      end
+      custom_cast = fn _value, _opts -> {:error, "custom error"} end
 
       schema = %{name: [type: custom_cast]}
       params = %{"name" => "john"}
@@ -323,15 +342,105 @@ defmodule PexTest do
     end
 
     test "handles custom cast function returning error list" do
-      custom_cast = fn _value, _opts ->
-        {:error, ["error1", "error2"]}
-      end
+      custom_cast = fn _value, _opts -> {:error, ["error1", "error2"]} end
 
       schema = %{name: [type: custom_cast]}
       params = %{"name" => "john"}
 
       result = Pex.run(schema, params, error_mode: :strict)
       assert {:error, ["error1", "error2"]} = result.name
+    end
+  end
+
+  describe "custom validate functions" do
+    test "processes custom validation function returning true" do
+      custom_validator = fn value -> String.length(value) > 2 end
+
+      schema = %{name: [type: :string, validators: [custom: custom_validator]]}
+      params = %{"name" => "john"}
+
+      result = Pex.run(schema, params)
+      assert result.name == "john"
+    end
+
+    test "processes custom validation function returning :ok" do
+      custom_validator = fn value -> if String.length(value) > 2, do: :ok, else: :error end
+
+      schema = %{name: [type: :string, validators: [custom: custom_validator]]}
+      params = %{"name" => "john"}
+
+      result = Pex.run(schema, params)
+      assert result.name == "john"
+    end
+
+    test "processes custom validation function returning {:ok, _}" do
+      custom_validator = fn value ->
+        if String.length(value) > 2, do: {:ok, value}, else: {:error, "too short"}
+      end
+
+      schema = %{name: [type: :string, validators: [custom: custom_validator]]}
+      params = %{"name" => "john"}
+
+      result = Pex.run(schema, params)
+      assert result.name == "john"
+    end
+
+    test "handles custom validation function returning false error value" do
+      custom_validator = fn value -> String.length(value) > 10 end
+
+      schema = %{name: [type: :string, validators: [custom: custom_validator]]}
+      params = %{"name" => "john"}
+
+      result = Pex.run(schema, params, error_mode: :strict)
+      assert {:error, ["invalid value"]} = result.name
+    end
+
+    test "handles custom validation function returning :error error value" do
+      custom_validator = fn value -> if String.length(value) > 10, do: :ok, else: :error end
+
+      schema = %{name: [type: :string, validators: [custom: custom_validator]]}
+      params = %{"name" => "john"}
+
+      result = Pex.run(schema, params, error_mode: :strict)
+      assert {:error, ["invalid value"]} = result.name
+    end
+
+    test "handles custom validation function returning {:error, error} error value" do
+      custom_validator = fn value ->
+        if String.length(value) > 10 do
+          :ok
+        else
+          {:error, "must be longer than 10 characters"}
+        end
+      end
+
+      schema = %{name: [type: :string, validators: [custom: custom_validator]]}
+      params = %{"name" => "john"}
+
+      result = Pex.run(schema, params, error_mode: :strict)
+      assert {:error, ["must be longer than 10 characters"]} = result.name
+    end
+
+    test "returns only unique errors" do
+      validator1 = fn _value -> {:error, "too short"} end
+      validator2 = fn _value -> {:error, "too short"} end
+      validator3 = fn _value -> {:error, "invalid format"} end
+
+      schema = %{
+        name: [
+          type: :string,
+          validators: [
+            custom: validator1,
+            custom: validator2,
+            custom: validator3
+          ]
+        ]
+      }
+
+      params = %{"name" => "ab"}
+
+      result = Pex.run(schema, params, error_mode: :strict)
+      assert {:error, ["too short", "invalid format"]} = result.name
     end
   end
 

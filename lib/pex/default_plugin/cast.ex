@@ -52,7 +52,7 @@ defmodule Pex.DefaultPlugin.Cast do
     end
   end
 
-  def cast(_value, :boolean, _opts), do: {:error, "invalid date"}
+  def cast(_value, :date, _opts), do: {:error, "invalid date"}
 
   # DateTime
   def cast(%DateTime{} = dt, :datetime, _opts), do: {:ok, dt}
@@ -65,7 +65,7 @@ defmodule Pex.DefaultPlugin.Cast do
     end
   end
 
-  def cast(_value, :boolean, _opts), do: {:error, "invalid datetime"}
+  def cast(_value, :datetime, _opts), do: {:error, "invalid datetime"}
 
   # List
   def cast(value, :list, opts) when is_binary(value), do: cast(String.split(value, ",", trim: true), :list, opts)

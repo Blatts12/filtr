@@ -97,8 +97,18 @@ defmodule Pex do
     errors =
       validators
       |> Keyword.drop([:default, :required])
-      |> Enum.map(fn validator ->
-        @type_plugin_map[type].validate(value, type, validator, opts)
+      |> Enum.map(fn
+        {:custom, func} when is_function(func, 3) ->
+          func.(value, type, opts)
+
+        {:custom, func} when is_function(func, 2) ->
+          func.(value, type)
+
+        {:custom, func} when is_function(func, 1) ->
+          func.(value)
+
+        validator ->
+          @type_plugin_map[type].validate(value, type, validator, opts)
       end)
       |> process_validator_results()
 
