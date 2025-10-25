@@ -37,6 +37,7 @@ defmodule Pex.HelpersTest do
       original_plugins = Application.get_env(:pex, :plugins, [])
 
       defmodule TestPlugin do
+        @moduledoc false
         use Pex.Plugin
       end
 
@@ -56,22 +57,23 @@ defmodule Pex.HelpersTest do
 
       type_map = Helpers.type_plugin_map()
 
-      assert type_map[:string] == Pex.DefaultPlugin
-      assert type_map[:integer] == Pex.DefaultPlugin
-      assert type_map[:float] == Pex.DefaultPlugin
-      assert type_map[:boolean] == Pex.DefaultPlugin
-      assert type_map[:time] == Pex.DefaultPlugin
-      assert type_map[:date] == Pex.DefaultPlugin
-      assert type_map[:datetime] == Pex.DefaultPlugin
-      assert type_map[:list] == Pex.DefaultPlugin
+      assert type_map[:string] == [Pex.DefaultPlugin]
+      assert type_map[:integer] == [Pex.DefaultPlugin]
+      assert type_map[:float] == [Pex.DefaultPlugin]
+      assert type_map[:boolean] == [Pex.DefaultPlugin]
+      assert type_map[:time] == [Pex.DefaultPlugin]
+      assert type_map[:date] == [Pex.DefaultPlugin]
+      assert type_map[:datetime] == [Pex.DefaultPlugin]
+      assert type_map[:list] == [Pex.DefaultPlugin]
 
       Application.put_env(:pex, :plugins, original_plugins)
     end
 
-    test "later plugins override earlier plugins for the same type" do
+    test "later plugins are first on the list of pluhins" do
       original_plugins = Application.get_env(:pex, :plugins)
 
       defmodule TestPluginOverride do
+        @moduledoc false
         use Pex.Plugin
 
         @impl true
@@ -82,11 +84,11 @@ defmodule Pex.HelpersTest do
 
       type_map = Helpers.type_plugin_map()
 
-      assert type_map[:string] == TestPluginOverride
-      assert type_map[:custom_type] == TestPluginOverride
+      assert type_map[:string] == [TestPluginOverride, Pex.DefaultPlugin]
+      assert type_map[:custom_type] == [TestPluginOverride]
 
-      assert type_map[:integer] == Pex.DefaultPlugin
-      assert type_map[:boolean] == Pex.DefaultPlugin
+      assert type_map[:integer] == [Pex.DefaultPlugin]
+      assert type_map[:boolean] == [Pex.DefaultPlugin]
 
       Application.put_env(:pex, :plugins, original_plugins)
     end
@@ -95,6 +97,7 @@ defmodule Pex.HelpersTest do
       original_plugins = Application.get_env(:pex, :plugins)
 
       defmodule EmptyPlugin do
+        @moduledoc false
         use Pex.Plugin
 
         @impl true
@@ -105,7 +108,7 @@ defmodule Pex.HelpersTest do
 
       type_map = Helpers.type_plugin_map()
 
-      assert type_map[:string] == Pex.DefaultPlugin
+      assert type_map[:string] == [Pex.DefaultPlugin]
 
       Application.put_env(:pex, :plugins, original_plugins)
     end

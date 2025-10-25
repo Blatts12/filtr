@@ -1,14 +1,13 @@
 defmodule Pex.PluginTest do
   use ExUnit.Case, async: false
 
-  alias Pex.DefaultPlugin.Cast
-  alias Pex.DefaultPlugin.Validate
   alias Pex.Plugin
 
   describe "__using__ macro" do
     test "sets up behaviour with default types/0 returning empty list" do
       defmodule BasicPlugin do
-        use Pex.Plugin
+        @moduledoc false
+        use Plugin
       end
 
       assert BasicPlugin.types() == []
@@ -16,7 +15,8 @@ defmodule Pex.PluginTest do
 
     test "allows overriding types/0" do
       defmodule CustomTypesPlugin do
-        use Pex.Plugin
+        @moduledoc false
+        use Plugin
 
         @impl true
         def types, do: [:custom_type]
@@ -27,7 +27,8 @@ defmodule Pex.PluginTest do
 
     test "allows implementing cast/3 callback" do
       defmodule CastPlugin do
-        use Pex.Plugin
+        @moduledoc false
+        use Plugin
 
         @impl true
         def types, do: [:uppercase]
@@ -39,7 +40,7 @@ defmodule Pex.PluginTest do
 
         @impl true
         def validate(value, :uppercase, validator, opts) do
-          Validate.validate(value, :string, validator, opts)
+          Pex.DefaultPlugin.Validate.validate(value, :string, validator, opts)
         end
       end
 
@@ -48,14 +49,15 @@ defmodule Pex.PluginTest do
 
     test "allows implementing validate/4 callback" do
       defmodule ValidatePlugin do
-        use Pex.Plugin
+        @moduledoc false
+        use Plugin
 
         @impl true
         def types, do: [:even_number]
 
         @impl true
         def cast(value, :even_number, opts) do
-          Cast.cast(value, :integer, opts)
+          Pex.DefaultPlugin.Cast.cast(value, :integer, opts)
         end
 
         @impl true
@@ -84,11 +86,13 @@ defmodule Pex.PluginTest do
       original_plugins = Application.get_env(:pex, :plugins, [])
 
       defmodule FirstPlugin do
-        use Pex.Plugin
+        @moduledoc false
+        use Plugin
       end
 
       defmodule SecondPlugin do
-        use Pex.Plugin
+        @moduledoc false
+        use Plugin
       end
 
       Application.put_env(:pex, :plugins, [FirstPlugin, SecondPlugin])
@@ -105,10 +109,10 @@ defmodule Pex.PluginTest do
 
       Application.delete_env(:pex, :plugins)
 
-      assert Plugin.find_for_type(:string) == Pex.DefaultPlugin
-      assert Plugin.find_for_type(:integer) == Pex.DefaultPlugin
-      assert Plugin.find_for_type(:boolean) == Pex.DefaultPlugin
-      assert Plugin.find_for_type(:date) == Pex.DefaultPlugin
+      assert Plugin.find_for_type(:string) == [Pex.DefaultPlugin]
+      assert Plugin.find_for_type(:integer) == [Pex.DefaultPlugin]
+      assert Plugin.find_for_type(:boolean) == [Pex.DefaultPlugin]
+      assert Plugin.find_for_type(:date) == [Pex.DefaultPlugin]
 
       Application.put_env(:pex, :plugins, original_plugins)
     end
@@ -117,7 +121,8 @@ defmodule Pex.PluginTest do
       original_plugins = Application.get_env(:pex, :plugins, [])
 
       defmodule CustomTypePlugin do
-        use Pex.Plugin
+        @moduledoc false
+        use Plugin
 
         @impl true
         def types, do: [:custom, :special]
@@ -125,8 +130,8 @@ defmodule Pex.PluginTest do
 
       Application.put_env(:pex, :plugins, [CustomTypePlugin])
 
-      assert Plugin.find_for_type(:custom) == CustomTypePlugin
-      assert Plugin.find_for_type(:special) == CustomTypePlugin
+      assert Plugin.find_for_type(:custom) == [CustomTypePlugin]
+      assert Plugin.find_for_type(:special) == [CustomTypePlugin]
 
       Application.put_env(:pex, :plugins, original_plugins)
     end
@@ -142,28 +147,27 @@ defmodule Pex.PluginTest do
       Application.put_env(:pex, :plugins, original_plugins)
     end
 
-    test "later plugins override earlier plugins for the same type" do
+    test "later plugins are first in the list" do
       original_plugins = Application.get_env(:pex, :plugins, [])
 
       defmodule FirstOverridePlugin do
-        use Pex.Plugin
+        @moduledoc false
+        use Plugin
 
         @impl true
         def types, do: [:shared_type]
       end
 
       defmodule SecondOverridePlugin do
-        use Pex.Plugin
+        @moduledoc false
+        use Plugin
 
         @impl true
         def types, do: [:shared_type]
       end
 
       Application.put_env(:pex, :plugins, [FirstOverridePlugin, SecondOverridePlugin])
-
-      # Second plugin should override first
-      assert Plugin.find_for_type(:shared_type) == SecondOverridePlugin
-
+      assert Plugin.find_for_type(:shared_type) == [SecondOverridePlugin, FirstOverridePlugin]
       Application.put_env(:pex, :plugins, original_plugins)
     end
 
@@ -171,7 +175,8 @@ defmodule Pex.PluginTest do
       original_plugins = Application.get_env(:pex, :plugins, [])
 
       defmodule StringOverridePlugin do
-        use Pex.Plugin
+        @moduledoc false
+        use Plugin
 
         @impl true
         def types, do: [:string]
@@ -179,10 +184,8 @@ defmodule Pex.PluginTest do
 
       Application.put_env(:pex, :plugins, [StringOverridePlugin])
 
-      # Custom plugin should override DefaultPlugin for :string
-      assert Plugin.find_for_type(:string) == StringOverridePlugin
-      # But DefaultPlugin still handles other types
-      assert Plugin.find_for_type(:integer) == Pex.DefaultPlugin
+      assert Plugin.find_for_type(:string) == [StringOverridePlugin, Pex.DefaultPlugin]
+      assert Plugin.find_for_type(:integer) == [Pex.DefaultPlugin]
 
       Application.put_env(:pex, :plugins, original_plugins)
     end
@@ -191,7 +194,8 @@ defmodule Pex.PluginTest do
   describe "custom plugin behaviour implementation" do
     test "plugin can implement cast/3 callback" do
       defmodule CastTestPlugin do
-        use Pex.Plugin
+        @moduledoc false
+        use Plugin
 
         @impl true
         def types, do: [:uppercase]
@@ -208,7 +212,8 @@ defmodule Pex.PluginTest do
 
     test "plugin can implement validate/4 callback with different validators" do
       defmodule ValidateTestPlugin do
-        use Pex.Plugin
+        @moduledoc false
+        use Plugin
 
         @impl true
         def types, do: [:even_number]
@@ -230,7 +235,9 @@ defmodule Pex.PluginTest do
 
       # Test even validation
       assert :ok = ValidateTestPlugin.validate(10, :even_number, {:must_be_even, true}, [])
-      assert {:error, "must be even"} = ValidateTestPlugin.validate(11, :even_number, {:must_be_even, true}, [])
+
+      assert {:error, "must be even"} =
+               ValidateTestPlugin.validate(11, :even_number, {:must_be_even, true}, [])
 
       # Test min validation
       assert :ok = ValidateTestPlugin.validate(20, :even_number, {:min, 10}, [])
@@ -239,7 +246,8 @@ defmodule Pex.PluginTest do
 
     test "plugin can return different validation result types" do
       defmodule ValidationResultsPlugin do
-        use Pex.Plugin
+        @moduledoc false
+        use Plugin
 
         @impl true
         def types, do: [:test]
@@ -260,13 +268,18 @@ defmodule Pex.PluginTest do
       assert true == ValidationResultsPlugin.validate("x", :test, {:return_true, true}, [])
       assert false == ValidationResultsPlugin.validate("x", :test, {:return_false, true}, [])
       assert :error == ValidationResultsPlugin.validate("x", :test, {:return_error, true}, [])
-      assert {:ok, "valid"} == ValidationResultsPlugin.validate("x", :test, {:return_ok_tuple, true}, [])
-      assert {:error, "custom"} == ValidationResultsPlugin.validate("x", :test, {:return_error_tuple, "custom"}, [])
+
+      assert {:ok, "valid"} ==
+               ValidationResultsPlugin.validate("x", :test, {:return_ok_tuple, true}, [])
+
+      assert {:error, "custom"} ==
+               ValidationResultsPlugin.validate("x", :test, {:return_error_tuple, "custom"}, [])
     end
 
     test "plugin can handle multiple types" do
       defmodule MultiTypePlugin do
-        use Pex.Plugin
+        @moduledoc false
+        use Plugin
 
         @impl true
         def types, do: [:type_a, :type_b, :type_c]
@@ -288,7 +301,8 @@ defmodule Pex.PluginTest do
 
     test "plugin cast can return error" do
       defmodule ErrorCastPlugin do
-        use Pex.Plugin
+        @moduledoc false
+        use Plugin
 
         @impl true
         def types, do: [:strict_integer]
@@ -308,7 +322,8 @@ defmodule Pex.PluginTest do
 
     test "plugin cast can return error list" do
       defmodule ErrorListCastPlugin do
-        use Pex.Plugin
+        @moduledoc false
+        use Plugin
 
         @impl true
         def types, do: [:validated]
@@ -322,7 +337,8 @@ defmodule Pex.PluginTest do
         def validate(_value, :validated, _validator, _opts), do: :ok
       end
 
-      assert {:error, ["error1", "error2", "error3"]} = ErrorListCastPlugin.cast("x", :validated, [])
+      assert {:error, ["error1", "error2", "error3"]} =
+               ErrorListCastPlugin.cast("x", :validated, [])
     end
   end
 end

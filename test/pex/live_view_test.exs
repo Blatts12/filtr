@@ -117,6 +117,7 @@ defmodule Pex.LiveViewTest do
     test "creates module with params" do
       module =
         defmodule TestLiveViewParams do
+          @moduledoc false
           use Phoenix.LiveView, namespace: Pex
           use Pex.LiveView
 
@@ -130,6 +131,7 @@ defmodule Pex.LiveViewTest do
     test "raises when provided with invalid error mode" do
       assert_raise ArgumentError, fn ->
         defmodule TestInvalidErrorMode do
+          @moduledoc false
           use Phoenix.LiveView, namespace: Pex
           use Pex.LiveView, error_mode: :invalid
         end

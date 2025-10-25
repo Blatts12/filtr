@@ -75,12 +75,12 @@ defmodule Pex do
   end
 
   defp cast(key, value, type, opts) do
-    plugin = @type_plugin_map[type]
+    plugins = @type_plugin_map[type]
 
-    if is_nil(plugin) do
+    if is_nil(plugins) do
       process_error_with_mode(key, "unsupported type - #{type}", opts)
     else
-      case plugin.cast(value, type, opts) do
+      case plugin_cast(plugins, value, type, opts) do
         {:ok, value} -> {:ok, value}
         {:error, error} -> process_error_with_mode(key, error, opts)
       end
@@ -108,7 +108,8 @@ defmodule Pex do
           func.(value)
 
         validator ->
-          @type_plugin_map[type].validate(value, type, validator, opts)
+          plugins = @type_plugin_map[type]
+          plugin_validate(plugins, value, type, validator, opts)
       end)
       |> process_validator_results()
 
@@ -157,5 +158,29 @@ defmodule Pex do
 
   defp get_value(params, key) do
     Map.get(params, to_string(key)) || Map.get(params, key)
+  end
+
+  defp plugin_cast(plugins, value, type, opts) do
+    Enum.reduce_while(plugins, {:error, "missing cast for #{type}"}, fn plugin, result ->
+      try do
+        plugin.cast(value, type, opts)
+      catch
+        _ -> {:cont, result}
+      else
+        result -> {:halt, result}
+      end
+    end)
+  end
+
+  defp plugin_validate(plugins, value, type, validator, opts) do
+    Enum.reduce_while(plugins, {:error, "missing validate for #{type}, #{inspect(validator)}"}, fn plugin, result ->
+      try do
+        plugin.validate(value, type, validator, opts)
+      catch
+        _ -> {:cont, result}
+      else
+        result -> {:halt, result}
+      end
+    end)
   end
 end

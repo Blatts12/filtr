@@ -1,4 +1,5 @@
 defmodule Pex.LiveViewTest.FallbackLive do
+  @moduledoc false
   use Phoenix.LiveView, namespace: Pex
   use Pex.LiveView, error_mode: :fallback
 

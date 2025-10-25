@@ -17,7 +17,7 @@ defmodule Pex.Helpers do
       types = plugin.types()
 
       Enum.reduce(types, type_map, fn type, type_map ->
-        Map.put(type_map, type, plugin)
+        Map.update(type_map, type, [plugin], fn p -> [plugin | p] end)
       end)
     end)
   end
