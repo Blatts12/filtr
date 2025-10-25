@@ -25,9 +25,13 @@ end
 defmodule Pex.LiveViewTest.Endpoint do
   use Phoenix.Endpoint, otp_app: :phoenix_live_view
 
-  @before_compile Pex.LiveViewTest.EndpointOverridable
+  alias Pex.LiveViewTest.EndpointOverridable
+  alias Phoenix.LiveView.PubSub
+  alias Phoenix.LiveView.Socket
 
-  socket("/live", Phoenix.LiveView.Socket)
+  @before_compile EndpointOverridable
+
+  socket("/live", Socket)
 
   defoverridable url: 0, script_name: 0, config: 1, config: 2, static_path: 1
   def url, do: "http://localhost:4000"
@@ -37,7 +41,7 @@ defmodule Pex.LiveViewTest.Endpoint do
   def config(:secret_key_base), do: String.duplicate("57689", 50)
   def config(:cache_static_manifest_latest), do: Process.get(:cache_static_manifest_latest)
   def config(:otp_app), do: :phoenix_live_view
-  def config(:pubsub_server), do: Phoenix.LiveView.PubSub
+  def config(:pubsub_server), do: PubSub
   def config(:render_errors), do: [view: __MODULE__]
   def config(:static_url), do: [path: "/static"]
   def config(:logger), do: [level: :info]

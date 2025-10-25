@@ -41,7 +41,7 @@ defmodule Pex.Controller do
     end
 
     quote do
-      import Pex.Controller, only: [param: 2, param: 3]
+      import Pex.Controller, only: [param: 2, param: 3, param: 4]
 
       Module.register_attribute(__MODULE__, :pex_param_definitions, accumulate: true)
       Module.register_attribute(__MODULE__, :pex_function_params, accumulate: true)
@@ -61,9 +61,9 @@ defmodule Pex.Controller do
       param :email, :string, required: true, pattern: ~r/@/
       param :tags, {:list, :string}, default: []
   """
-  defmacro param(name, type, opts \\ []) do
+  defmacro param(name, type, validators \\ [], opts \\ []) do
     quote do
-      @pex_param_definitions {unquote(name), [type: unquote(type)] ++ unquote(opts)}
+      @pex_param_definitions {unquote(name), [type: unquote(type), validators: unquote(validators)] ++ unquote(opts)}
     end
   end
 

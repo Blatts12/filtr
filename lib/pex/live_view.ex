@@ -1,41 +1,5 @@
 defmodule Pex.LiveView do
-  @moduledoc """
-  Provides Phoenix LiveView integration with attr-style parameter definitions.
-
-  This module enables parameter handling in LiveViews using a syntax similar to Phoenix
-  Components' `attr` macro, but using `param` to define query parameters with validation.
-
-  ## Parameter Definition
-
-  Use the `param` macro to define parameters with their types and validation rules:
-
-      param :name, :string, required: true
-      param :age, :integer, min: 0, max: 120
-      param :email, :string, pattern: ~r/@/
-      param :tags, {:list, :string}, default: []
-
-  ## Example
-
-      defmodule MyAppWeb.ProductsLive do
-        use MyAppWeb, :live_view
-        use Pex.LiveView
-
-        param :category, :string, default: "all"
-        param :sort, :string, in: ["name", "price"], default: "name"
-        param :page, :integer, default: 1, min: 1
-        param :search, :string, default: "", min: 0, max: 100
-
-        def handle_params(_params, _uri, socket) do
-          products = load_products(socket.assigns.pex)
-          {:noreply, assign(socket, products: products)}
-        end
-
-        defp load_products(params) do
-          # params.category, params.sort, params.page, and params.search are validated
-          MyApp.Products.list_products(params)
-        end
-      end
-  """
+  @moduledoc false
 
   @valid_error_modes [:strict, :fallback, :raise]
 
@@ -47,7 +11,7 @@ defmodule Pex.LiveView do
     end
 
     quote do
-      import Pex.LiveView, only: [param: 2, param: 3]
+      import Pex.LiveView, only: [param: 2, param: 3, param: 4]
 
       alias Phoenix.LiveView.Socket
 
@@ -74,9 +38,9 @@ defmodule Pex.LiveView do
       param :email, :string, required: true, pattern: ~r/@/
       param :tags, {:list, :string}, default: []
   """
-  defmacro param(name, type, opts \\ []) do
+  defmacro param(name, type, validators \\ [], opts \\ []) do
     quote do
-      @pex_params {unquote(name), [type: unquote(type)] ++ unquote(opts)}
+      @pex_params {unquote(name), [type: unquote(type), validators: unquote(validators)] ++ unquote(opts)}
     end
   end
 

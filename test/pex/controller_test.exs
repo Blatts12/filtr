@@ -163,7 +163,7 @@ defmodule Pex.ControllerTest do
       conn = %{}
       params = %{"age" => "25"}
 
-      assert_raise ArgumentError, "Validation failed for name: required", fn ->
+      assert_raise RuntimeError, "Invalid value for name: required", fn ->
         RaiseModeController.create(conn, params)
       end
     end

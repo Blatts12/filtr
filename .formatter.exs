@@ -1,5 +1,5 @@
 # Used by "mix format"
-locals_without_parens = [param: 2, param: 3]
+locals_without_parens = [param: 2, param: 3, param: 4]
 
 [
   plugins: [Quokka],

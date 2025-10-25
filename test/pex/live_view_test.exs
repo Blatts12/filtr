@@ -86,13 +86,13 @@ defmodule Pex.LiveViewTest do
     setup [:init_session]
 
     test "raises an error with no params - required params missing", %{conn: conn} do
-      assert_raise WrapperError, ~r/Validation failed/, fn ->
+      assert_raise WrapperError, ~r/Invalid value for query: required/, fn ->
         {:ok, _lv, _html} = live(conn, "/raise")
       end
     end
 
     test "raises an error with invalid params", %{conn: conn} do
-      assert_raise WrapperError, ~r/Validation failed/, fn ->
+      assert_raise WrapperError, ~r/Invalid value for limit/, fn ->
         {:ok, _lv, _html} = live(conn, "/raise?query=elixir&limit=invalid")
       end
     end
