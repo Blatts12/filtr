@@ -8,9 +8,8 @@ Filtr provides a flexible, plugin-based system for validating and casting parame
 
 - **Phoenix Integration**
 - **Plugin System**
-- **Multiple Error Modes**
 - **Nested Schemas**
-- **Custom Validators**
+- **Multiple Error Modes**
 
 ## Requirements
 
