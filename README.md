@@ -575,5 +575,6 @@ end
 - [ ] Docs in Code
 - [ ] More Tests
 - [ ] Benchmarks
+- [ ] CI
 
 License MIT
