@@ -1,14 +1,14 @@
-defmodule Pex.Helpers do
+defmodule Filtr.Helpers do
   @moduledoc false
 
   @spec default_error_mode() :: atom()
   def default_error_mode do
-    Application.get_env(:pex, :error_mode) || :fallback
+    Application.get_env(:filtr, :error_mode) || :fallback
   end
 
   @spec plugins() :: [module()]
   def plugins do
-    [Pex.DefaultPlugin] ++ Application.get_env(:pex, :plugins, [])
+    [Filtr.DefaultPlugin] ++ Application.get_env(:filtr, :plugins, [])
   end
 
   @spec type_plugin_map() :: %{atom() => module()}

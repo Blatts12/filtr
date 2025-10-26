@@ -1,7 +1,7 @@
-defmodule Pex.PluginTest do
+defmodule Filtr.PluginTest do
   use ExUnit.Case, async: false
 
-  alias Pex.Plugin
+  alias Filtr.Plugin
 
   describe "__using__ macro" do
     test "sets up behaviour with default types/0 returning empty list" do
@@ -40,7 +40,7 @@ defmodule Pex.PluginTest do
 
         @impl true
         def validate(value, :uppercase, validator, opts) do
-          Pex.DefaultPlugin.Validate.validate(value, :string, validator, opts)
+          Filtr.DefaultPlugin.Validate.validate(value, :string, validator, opts)
         end
       end
 
@@ -57,7 +57,7 @@ defmodule Pex.PluginTest do
 
         @impl true
         def cast(value, :even_number, opts) do
-          Pex.DefaultPlugin.Cast.cast(value, :integer, opts)
+          Filtr.DefaultPlugin.Cast.cast(value, :integer, opts)
         end
 
         @impl true
@@ -73,17 +73,17 @@ defmodule Pex.PluginTest do
 
   describe "all/0" do
     test "returns all registered plugins including DefaultPlugin" do
-      original_plugins = Application.get_env(:pex, :plugins, [])
+      original_plugins = Application.get_env(:filtr, :plugins, [])
 
-      Application.delete_env(:pex, :plugins)
+      Application.delete_env(:filtr, :plugins)
 
-      assert [Pex.DefaultPlugin] = Plugin.all()
+      assert [Filtr.DefaultPlugin] = Plugin.all()
 
-      Application.put_env(:pex, :plugins, original_plugins)
+      Application.put_env(:filtr, :plugins, original_plugins)
     end
 
     test "returns plugins in correct order with DefaultPlugin first" do
-      original_plugins = Application.get_env(:pex, :plugins, [])
+      original_plugins = Application.get_env(:filtr, :plugins, [])
 
       defmodule FirstPlugin do
         @moduledoc false
@@ -95,30 +95,30 @@ defmodule Pex.PluginTest do
         use Plugin
       end
 
-      Application.put_env(:pex, :plugins, [FirstPlugin, SecondPlugin])
+      Application.put_env(:filtr, :plugins, [FirstPlugin, SecondPlugin])
 
-      assert [Pex.DefaultPlugin, FirstPlugin, SecondPlugin] = Plugin.all()
+      assert [Filtr.DefaultPlugin, FirstPlugin, SecondPlugin] = Plugin.all()
 
-      Application.put_env(:pex, :plugins, original_plugins)
+      Application.put_env(:filtr, :plugins, original_plugins)
     end
   end
 
   describe "find_for_type/1" do
     test "finds DefaultPlugin for built-in types" do
-      original_plugins = Application.get_env(:pex, :plugins, [])
+      original_plugins = Application.get_env(:filtr, :plugins, [])
 
-      Application.delete_env(:pex, :plugins)
+      Application.delete_env(:filtr, :plugins)
 
-      assert Plugin.find_for_type(:string) == [Pex.DefaultPlugin]
-      assert Plugin.find_for_type(:integer) == [Pex.DefaultPlugin]
-      assert Plugin.find_for_type(:boolean) == [Pex.DefaultPlugin]
-      assert Plugin.find_for_type(:date) == [Pex.DefaultPlugin]
+      assert Plugin.find_for_type(:string) == [Filtr.DefaultPlugin]
+      assert Plugin.find_for_type(:integer) == [Filtr.DefaultPlugin]
+      assert Plugin.find_for_type(:boolean) == [Filtr.DefaultPlugin]
+      assert Plugin.find_for_type(:date) == [Filtr.DefaultPlugin]
 
-      Application.put_env(:pex, :plugins, original_plugins)
+      Application.put_env(:filtr, :plugins, original_plugins)
     end
 
     test "finds custom plugin for custom types" do
-      original_plugins = Application.get_env(:pex, :plugins, [])
+      original_plugins = Application.get_env(:filtr, :plugins, [])
 
       defmodule CustomTypePlugin do
         @moduledoc false
@@ -128,27 +128,27 @@ defmodule Pex.PluginTest do
         def types, do: [:custom, :special]
       end
 
-      Application.put_env(:pex, :plugins, [CustomTypePlugin])
+      Application.put_env(:filtr, :plugins, [CustomTypePlugin])
 
       assert Plugin.find_for_type(:custom) == [CustomTypePlugin]
       assert Plugin.find_for_type(:special) == [CustomTypePlugin]
 
-      Application.put_env(:pex, :plugins, original_plugins)
+      Application.put_env(:filtr, :plugins, original_plugins)
     end
 
     test "returns nil for unsupported types" do
-      original_plugins = Application.get_env(:pex, :plugins, [])
+      original_plugins = Application.get_env(:filtr, :plugins, [])
 
-      Application.delete_env(:pex, :plugins)
+      Application.delete_env(:filtr, :plugins)
 
       assert Plugin.find_for_type(:nonexistent_type) == nil
       assert Plugin.find_for_type(:unknown) == nil
 
-      Application.put_env(:pex, :plugins, original_plugins)
+      Application.put_env(:filtr, :plugins, original_plugins)
     end
 
     test "later plugins are first in the list" do
-      original_plugins = Application.get_env(:pex, :plugins, [])
+      original_plugins = Application.get_env(:filtr, :plugins, [])
 
       defmodule FirstOverridePlugin do
         @moduledoc false
@@ -166,13 +166,13 @@ defmodule Pex.PluginTest do
         def types, do: [:shared_type]
       end
 
-      Application.put_env(:pex, :plugins, [FirstOverridePlugin, SecondOverridePlugin])
+      Application.put_env(:filtr, :plugins, [FirstOverridePlugin, SecondOverridePlugin])
       assert Plugin.find_for_type(:shared_type) == [SecondOverridePlugin, FirstOverridePlugin]
-      Application.put_env(:pex, :plugins, original_plugins)
+      Application.put_env(:filtr, :plugins, original_plugins)
     end
 
     test "custom plugin can override DefaultPlugin types" do
-      original_plugins = Application.get_env(:pex, :plugins, [])
+      original_plugins = Application.get_env(:filtr, :plugins, [])
 
       defmodule StringOverridePlugin do
         @moduledoc false
@@ -182,12 +182,12 @@ defmodule Pex.PluginTest do
         def types, do: [:string]
       end
 
-      Application.put_env(:pex, :plugins, [StringOverridePlugin])
+      Application.put_env(:filtr, :plugins, [StringOverridePlugin])
 
-      assert Plugin.find_for_type(:string) == [StringOverridePlugin, Pex.DefaultPlugin]
-      assert Plugin.find_for_type(:integer) == [Pex.DefaultPlugin]
+      assert Plugin.find_for_type(:string) == [StringOverridePlugin, Filtr.DefaultPlugin]
+      assert Plugin.find_for_type(:integer) == [Filtr.DefaultPlugin]
 
-      Application.put_env(:pex, :plugins, original_plugins)
+      Application.put_env(:filtr, :plugins, original_plugins)
     end
   end
 

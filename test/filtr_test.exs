@@ -1,4 +1,4 @@
-defmodule PexTest do
+defmodule FiltrTest do
   use ExUnit.Case, async: false
 
   describe "run/2 and run/3 basic behavior" do
@@ -6,7 +6,7 @@ defmodule PexTest do
       schema = %{name: [type: :string]}
       params = %{"name" => "John"}
 
-      result = Pex.run(schema, params)
+      result = Filtr.run(schema, params)
       assert result.name == "John"
     end
 
@@ -18,7 +18,7 @@ defmodule PexTest do
 
       params = %{name: "John", age: "25"}
 
-      result = Pex.run(schema, params)
+      result = Filtr.run(schema, params)
       assert result.name == "John"
       assert result.age == 25
     end
@@ -27,7 +27,7 @@ defmodule PexTest do
       schema = %{name: [type: :string]}
       params = %{}
 
-      result = Pex.run(schema, params)
+      result = Filtr.run(schema, params)
       assert result.name == nil
     end
   end
@@ -46,7 +46,7 @@ defmodule PexTest do
         }
       }
 
-      result = Pex.run(schema, params)
+      result = Filtr.run(schema, params)
       assert result.user.name == "John"
     end
 
@@ -59,7 +59,7 @@ defmodule PexTest do
 
       params = %{"user" => %{}}
 
-      result = Pex.run(schema, params, error_mode: :strict)
+      result = Filtr.run(schema, params, error_mode: :strict)
       assert {:error, ["required"]} = result.user.name
     end
 
@@ -72,7 +72,7 @@ defmodule PexTest do
 
       params = %{"user" => %{}}
 
-      result = Pex.run(schema, params, error_mode: :strict)
+      result = Filtr.run(schema, params, error_mode: :strict)
       assert result.user.name == nil
     end
   end
@@ -82,7 +82,7 @@ defmodule PexTest do
       schema = %{tags: [type: {:list, :string}]}
       params = %{"tags" => ["elixir", "phoenix"]}
 
-      result = Pex.run(schema, params)
+      result = Filtr.run(schema, params)
       assert result.tags == ["elixir", "phoenix"]
     end
 
@@ -90,7 +90,7 @@ defmodule PexTest do
       schema = %{scores: [type: {:list, :integer}]}
       params = %{"scores" => ["10", "20", "30"]}
 
-      result = Pex.run(schema, params)
+      result = Filtr.run(schema, params)
       assert result.scores == [10, 20, 30]
     end
 
@@ -98,7 +98,7 @@ defmodule PexTest do
       schema = %{tags: [type: {:list, :string}]}
       params = %{"tags" => []}
 
-      result = Pex.run(schema, params)
+      result = Filtr.run(schema, params)
       assert result.tags == []
     end
 
@@ -106,7 +106,7 @@ defmodule PexTest do
       schema = %{tags: [type: {:list, :string}, validators: [min: 2]]}
       params = %{"tags" => ["elixir", "a", "phoenix"]}
 
-      result = Pex.run(schema, params, error_mode: :strict)
+      result = Filtr.run(schema, params, error_mode: :strict)
       assert ["elixir", {:error, _}, "phoenix"] = result.tags
     end
 
@@ -130,7 +130,7 @@ defmodule PexTest do
         }
       }
 
-      result = Pex.run(schema, params)
+      result = Filtr.run(schema, params)
       assert result.items.name == "Product A"
       assert result.items.quantity == 5
     end
@@ -141,7 +141,7 @@ defmodule PexTest do
       schema = %{age: [type: :integer, validators: [default: 0]]}
       params = %{"age" => "invalid"}
 
-      result = Pex.run(schema, params, error_mode: :fallback)
+      result = Filtr.run(schema, params, error_mode: :fallback)
       assert result.age == 0
     end
 
@@ -149,7 +149,7 @@ defmodule PexTest do
       schema = %{age: [type: :integer]}
       params = %{"age" => "invalid"}
 
-      result = Pex.run(schema, params, error_mode: :fallback)
+      result = Filtr.run(schema, params, error_mode: :fallback)
       assert result.age == nil
     end
 
@@ -157,7 +157,7 @@ defmodule PexTest do
       schema = %{name: [type: :string, validators: [required: true, default: "Guest"]]}
       params = %{}
 
-      result = Pex.run(schema, params, error_mode: :fallback)
+      result = Filtr.run(schema, params, error_mode: :fallback)
       assert result.name == "Guest"
     end
 
@@ -165,7 +165,7 @@ defmodule PexTest do
       schema = %{name: [type: :string, validators: [required: true]]}
       params = %{}
 
-      result = Pex.run(schema, params, error_mode: :fallback)
+      result = Filtr.run(schema, params, error_mode: :fallback)
       assert result.name == nil
     end
 
@@ -173,7 +173,7 @@ defmodule PexTest do
       schema = %{age: [type: :integer, validators: [min: 18, default: 18]]}
       params = %{"age" => "10"}
 
-      result = Pex.run(schema, params, error_mode: :fallback)
+      result = Filtr.run(schema, params, error_mode: :fallback)
       assert result.age == 18
     end
   end
@@ -183,7 +183,7 @@ defmodule PexTest do
       schema = %{age: [type: :integer]}
       params = %{"age" => "invalid"}
 
-      result = Pex.run(schema, params, error_mode: :strict)
+      result = Filtr.run(schema, params, error_mode: :strict)
       assert {:error, _} = result.age
     end
 
@@ -191,7 +191,7 @@ defmodule PexTest do
       schema = %{name: [type: :string, validators: [required: true]]}
       params = %{}
 
-      result = Pex.run(schema, params, error_mode: :strict)
+      result = Filtr.run(schema, params, error_mode: :strict)
       assert {:error, ["required"]} = result.name
     end
 
@@ -199,7 +199,7 @@ defmodule PexTest do
       schema = %{name: [type: :string]}
       params = %{"name" => "John"}
 
-      result = Pex.run(schema, params, error_mode: :strict)
+      result = Filtr.run(schema, params, error_mode: :strict)
       assert result.name == "John"
     end
 
@@ -207,21 +207,21 @@ defmodule PexTest do
       schema = %{age: [type: :integer, validators: [min: 18]]}
       params = %{"age" => "10"}
 
-      result = Pex.run(schema, params, error_mode: :strict)
+      result = Filtr.run(schema, params, error_mode: :strict)
       assert {:error, _} = result.age
     end
 
     test "uses default error mode from config when not specified" do
-      original_mode = Application.get_env(:pex, :error_mode)
+      original_mode = Application.get_env(:filtr, :error_mode)
 
-      Application.put_env(:pex, :error_mode, :strict)
+      Application.put_env(:filtr, :error_mode, :strict)
       schema = %{age: [type: :integer, validators: [min: 18]]}
       params = %{"age" => "10"}
 
-      result = Pex.run(schema, params)
+      result = Filtr.run(schema, params)
       assert {:error, _} = result.age
 
-      Application.put_env(:pex, :error_mode, original_mode)
+      Application.put_env(:filtr, :error_mode, original_mode)
     end
   end
 
@@ -231,7 +231,7 @@ defmodule PexTest do
       params = %{"age" => "invalid"}
 
       assert_raise RuntimeError, ~r/Invalid value for age/, fn ->
-        Pex.run(schema, params, error_mode: :raise)
+        Filtr.run(schema, params, error_mode: :raise)
       end
     end
 
@@ -240,7 +240,7 @@ defmodule PexTest do
       params = %{}
 
       assert_raise RuntimeError, ~r/Invalid value for name: required/, fn ->
-        Pex.run(schema, params, error_mode: :raise)
+        Filtr.run(schema, params, error_mode: :raise)
       end
     end
 
@@ -248,7 +248,7 @@ defmodule PexTest do
       schema = %{name: [type: :string]}
       params = %{"name" => "John"}
 
-      result = Pex.run(schema, params, error_mode: :raise)
+      result = Filtr.run(schema, params, error_mode: :raise)
       assert result.name == "John"
     end
 
@@ -257,7 +257,7 @@ defmodule PexTest do
       params = %{"age" => "10"}
 
       assert_raise RuntimeError, ~r/Invalid value for age/, fn ->
-        Pex.run(schema, params, error_mode: :raise)
+        Filtr.run(schema, params, error_mode: :raise)
       end
     end
   end
@@ -267,7 +267,7 @@ defmodule PexTest do
       schema = %{page: [type: :integer, validators: [default: 1]]}
       params = %{}
 
-      result = Pex.run(schema, params)
+      result = Filtr.run(schema, params)
       assert result.page == 1
     end
 
@@ -281,7 +281,7 @@ defmodule PexTest do
 
       params = %{}
 
-      result = Pex.run(schema, params)
+      result = Filtr.run(schema, params)
       assert result.timestamp == 12_345
     end
 
@@ -289,7 +289,7 @@ defmodule PexTest do
       schema = %{page: [type: :integer, validators: [default: 1]]}
       params = %{"page" => "2"}
 
-      result = Pex.run(schema, params)
+      result = Filtr.run(schema, params)
       assert result.page == 2
     end
 
@@ -297,7 +297,7 @@ defmodule PexTest do
       schema = %{name: [type: :string, validators: [required: true]]}
       params = %{"name" => nil}
 
-      result = Pex.run(schema, params, error_mode: :strict)
+      result = Filtr.run(schema, params, error_mode: :strict)
       assert {:error, ["required"]} = result.name
     end
 
@@ -305,7 +305,7 @@ defmodule PexTest do
       schema = %{name: [type: :string, validators: [required: true]]}
       params = %{"name" => "John"}
 
-      result = Pex.run(schema, params)
+      result = Filtr.run(schema, params)
       assert result.name == "John"
     end
   end
@@ -317,7 +317,7 @@ defmodule PexTest do
       schema = %{name: [type: custom_cast]}
       params = %{"name" => "john"}
 
-      result = Pex.run(schema, params)
+      result = Filtr.run(schema, params)
       assert result.name == "JOHN"
     end
 
@@ -327,7 +327,7 @@ defmodule PexTest do
       schema = %{name: [type: custom_cast]}
       params = %{"name" => "john"}
 
-      result = Pex.run(schema, params)
+      result = Filtr.run(schema, params)
       assert result.name == "JOHN"
     end
 
@@ -337,7 +337,7 @@ defmodule PexTest do
       schema = %{name: [type: custom_cast]}
       params = %{"name" => "john"}
 
-      result = Pex.run(schema, params, error_mode: :strict)
+      result = Filtr.run(schema, params, error_mode: :strict)
       assert {:error, ["custom error"]} = result.name
     end
 
@@ -347,7 +347,7 @@ defmodule PexTest do
       schema = %{name: [type: custom_cast]}
       params = %{"name" => "john"}
 
-      result = Pex.run(schema, params, error_mode: :strict)
+      result = Filtr.run(schema, params, error_mode: :strict)
       assert {:error, ["error1", "error2"]} = result.name
     end
   end
@@ -359,7 +359,7 @@ defmodule PexTest do
       schema = %{name: [type: :string, validators: [custom: custom_validator]]}
       params = %{"name" => "john"}
 
-      result = Pex.run(schema, params)
+      result = Filtr.run(schema, params)
       assert result.name == "john"
     end
 
@@ -369,7 +369,7 @@ defmodule PexTest do
       schema = %{name: [type: :string, validators: [custom: custom_validator]]}
       params = %{"name" => "john"}
 
-      result = Pex.run(schema, params)
+      result = Filtr.run(schema, params)
       assert result.name == "john"
     end
 
@@ -381,7 +381,7 @@ defmodule PexTest do
       schema = %{name: [type: :string, validators: [custom: custom_validator]]}
       params = %{"name" => "john"}
 
-      result = Pex.run(schema, params)
+      result = Filtr.run(schema, params)
       assert result.name == "john"
     end
 
@@ -391,7 +391,7 @@ defmodule PexTest do
       schema = %{name: [type: :string, validators: [custom: custom_validator]]}
       params = %{"name" => "john"}
 
-      result = Pex.run(schema, params, error_mode: :strict)
+      result = Filtr.run(schema, params, error_mode: :strict)
       assert {:error, ["invalid value"]} = result.name
     end
 
@@ -401,7 +401,7 @@ defmodule PexTest do
       schema = %{name: [type: :string, validators: [custom: custom_validator]]}
       params = %{"name" => "john"}
 
-      result = Pex.run(schema, params, error_mode: :strict)
+      result = Filtr.run(schema, params, error_mode: :strict)
       assert {:error, ["invalid value"]} = result.name
     end
 
@@ -417,7 +417,7 @@ defmodule PexTest do
       schema = %{name: [type: :string, validators: [custom: custom_validator]]}
       params = %{"name" => "john"}
 
-      result = Pex.run(schema, params, error_mode: :strict)
+      result = Filtr.run(schema, params, error_mode: :strict)
       assert {:error, ["must be longer than 10 characters"]} = result.name
     end
 
@@ -439,7 +439,7 @@ defmodule PexTest do
 
       params = %{"name" => "ab"}
 
-      result = Pex.run(schema, params, error_mode: :strict)
+      result = Filtr.run(schema, params, error_mode: :strict)
       assert {:error, ["too short", "invalid format"]} = result.name
     end
   end
@@ -449,7 +449,7 @@ defmodule PexTest do
       schema = %{data: [type: :__none__]}
       params = %{"data" => %{"key" => "value"}}
 
-      result = Pex.run(schema, params)
+      result = Filtr.run(schema, params)
       assert result.data == %{"key" => "value"}
     end
 
@@ -457,7 +457,7 @@ defmodule PexTest do
       schema = %{data: [type: nil]}
       params = %{"data" => "anything"}
 
-      result = Pex.run(schema, params)
+      result = Filtr.run(schema, params)
       assert result.data == "anything"
     end
   end
@@ -467,7 +467,7 @@ defmodule PexTest do
       schema = %{data: [type: :unsupported_type]}
       params = %{"data" => "value"}
 
-      result = Pex.run(schema, params, error_mode: :strict)
+      result = Filtr.run(schema, params, error_mode: :strict)
       assert {:error, [error]} = result.data
       assert error =~ "unsupported type"
     end
@@ -476,7 +476,7 @@ defmodule PexTest do
       schema = %{data: [type: :unsupported_type]}
       params = %{"data" => "value"}
 
-      result = Pex.run(schema, params, error_mode: :fallback)
+      result = Filtr.run(schema, params, error_mode: :fallback)
       assert result.data == nil
     end
 
@@ -485,7 +485,7 @@ defmodule PexTest do
       params = %{"data" => "value"}
 
       assert_raise RuntimeError, ~r/unsupported type/, fn ->
-        Pex.run(schema, params, error_mode: :raise)
+        Filtr.run(schema, params, error_mode: :raise)
       end
     end
   end
@@ -498,7 +498,7 @@ defmodule PexTest do
 
       params = %{"name" => "John"}
 
-      result = Pex.run(schema, params)
+      result = Filtr.run(schema, params)
       assert result.name == "John"
     end
 
@@ -509,7 +509,7 @@ defmodule PexTest do
 
       params = %{"username" => "john_doe"}
 
-      result = Pex.run(schema, params)
+      result = Filtr.run(schema, params)
       assert result.username == "john_doe"
     end
 
@@ -520,7 +520,7 @@ defmodule PexTest do
 
       params = %{"age" => "15"}
 
-      result = Pex.run(schema, params, error_mode: :strict)
+      result = Filtr.run(schema, params, error_mode: :strict)
       assert {:error, [_, _]} = result.age
     end
   end
@@ -534,7 +534,7 @@ defmodule PexTest do
       params = %{}
 
       # Run with strict, but field uses fallback
-      result = Pex.run(schema, params, error_mode: :strict)
+      result = Filtr.run(schema, params, error_mode: :strict)
       assert result.name == nil
     end
 
@@ -545,7 +545,7 @@ defmodule PexTest do
 
       params = %{}
 
-      result = Pex.run(schema, params, error_mode: :strict)
+      result = Filtr.run(schema, params, error_mode: :strict)
       assert {:error, ["required"]} = result.name
     end
   end
@@ -562,7 +562,7 @@ defmodule PexTest do
 
       # id field with :raise should raise
       assert_raise RuntimeError, ~r/Invalid value for id: required/, fn ->
-        Pex.run(schema, params)
+        Filtr.run(schema, params)
       end
     end
 
@@ -574,7 +574,7 @@ defmodule PexTest do
 
       params = %{}
 
-      result = Pex.run(schema, params)
+      result = Filtr.run(schema, params)
       assert {:error, ["required"]} = result.email
       assert result.optional_field == "default"
     end
@@ -587,7 +587,7 @@ defmodule PexTest do
 
       params = %{"critical" => "10", "optional" => "invalid"}
 
-      result = Pex.run(schema, params, error_mode: :strict)
+      result = Filtr.run(schema, params, error_mode: :strict)
       assert result.critical == 10
       assert result.optional == 0
     end
@@ -600,7 +600,7 @@ defmodule PexTest do
 
       params = %{"optional" => "value"}
 
-      result = Pex.run(schema, params, error_mode: :fallback)
+      result = Filtr.run(schema, params, error_mode: :fallback)
       assert {:error, ["required"]} = result.critical
       assert result.optional == "value"
     end
@@ -614,7 +614,7 @@ defmodule PexTest do
       params = %{"optional" => "value"}
 
       assert_raise RuntimeError, ~r/Invalid value for critical: required/, fn ->
-        Pex.run(schema, params, error_mode: :strict)
+        Filtr.run(schema, params, error_mode: :strict)
       end
     end
 
@@ -626,7 +626,7 @@ defmodule PexTest do
 
       params = %{"strict_field" => "10", "fallback_field" => "10"}
 
-      result = Pex.run(schema, params)
+      result = Filtr.run(schema, params)
       assert {:error, ["must be at least 18"]} = result.strict_field
       assert result.fallback_field == 18
     end
@@ -639,7 +639,7 @@ defmodule PexTest do
 
       params = %{"strict_field" => "not_an_int", "fallback_field" => "not_an_int"}
 
-      result = Pex.run(schema, params)
+      result = Filtr.run(schema, params)
       assert {:error, ["invalid integer"]} = result.strict_field
       assert result.fallback_field == 0
     end
@@ -654,7 +654,7 @@ defmodule PexTest do
 
       params = %{"user" => %{"age" => "invalid"}}
 
-      result = Pex.run(schema, params, error_mode: :fallback)
+      result = Filtr.run(schema, params, error_mode: :fallback)
       assert {:error, ["required"]} = result.user.name
       assert result.user.age == 0
     end
@@ -668,16 +668,16 @@ defmodule PexTest do
 
       params = %{}
 
-      result = Pex.run(schema, params, error_mode: :fallback)
+      result = Filtr.run(schema, params, error_mode: :fallback)
       assert {:error, ["required"]} = result.field1
       assert {:error, ["required"]} = result.field2
       assert {:error, ["required"]} = result.field3
     end
 
     test "field error mode overrides config default" do
-      original_mode = Application.get_env(:pex, :error_mode)
+      original_mode = Application.get_env(:filtr, :error_mode)
 
-      Application.put_env(:pex, :error_mode, :strict)
+      Application.put_env(:filtr, :error_mode, :strict)
 
       schema = %{
         field: [type: :string, validators: [required: true, default: "default"], error_mode: :fallback]
@@ -685,10 +685,10 @@ defmodule PexTest do
 
       params = %{}
 
-      result = Pex.run(schema, params)
+      result = Filtr.run(schema, params)
       assert result.field == "default"
 
-      Application.put_env(:pex, :error_mode, original_mode)
+      Application.put_env(:filtr, :error_mode, original_mode)
     end
   end
 end

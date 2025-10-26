@@ -1,7 +1,7 @@
-defmodule Pex.Plugin do
+defmodule Filtr.Plugin do
   @moduledoc false
 
-  alias Pex.Helpers
+  alias Filtr.Helpers
 
   @type cast_result :: {:ok, any()} | {:error, binary() | [binary()]}
   @type validate_result :: :ok | :error | boolean() | {:ok, any()} | {:error, binary() | [binary()]}
@@ -15,9 +15,9 @@ defmodule Pex.Plugin do
 
   defmacro __using__(_opts) do
     quote do
-      @behaviour Pex.Plugin
+      @behaviour Filtr.Plugin
 
-      @impl Pex.Plugin
+      @impl Filtr.Plugin
       def types, do: []
 
       defoverridable types: 0

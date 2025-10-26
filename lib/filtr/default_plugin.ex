@@ -1,12 +1,12 @@
-defmodule Pex.DefaultPlugin do
+defmodule Filtr.DefaultPlugin do
   @moduledoc false
 
-  use Pex.Plugin
+  use Filtr.Plugin
 
-  alias Pex.DefaultPlugin.Cast
-  alias Pex.DefaultPlugin.Validate
+  alias Filtr.DefaultPlugin.Cast
+  alias Filtr.DefaultPlugin.Validate
 
-  @impl Pex.Plugin
+  @impl Filtr.Plugin
   def types do
     [
       :string,
@@ -20,12 +20,12 @@ defmodule Pex.DefaultPlugin do
     ]
   end
 
-  @impl Pex.Plugin
+  @impl Filtr.Plugin
   def validate(value, type, validator, opts) do
     Validate.validate(value, type, validator, opts)
   end
 
-  @impl Pex.Plugin
+  @impl Filtr.Plugin
   def cast(value, type, opts) do
     Cast.cast(value, type, opts)
   end

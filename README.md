@@ -1,8 +1,8 @@
-# Pex
+# Filtr
 
 Parameter validation library for Elixir with Phoenix integration.
 
-Pex provides a flexible, plugin-based system for validating and casting parameters in Phoenix applications. It offers seamless integration with Phoenix Controllers and LiveViews using an attr-style syntax similar to Phoenix Components.
+Filtr provides a flexible, plugin-based system for validating and casting parameters in Phoenix applications. It offers seamless integration with Phoenix Controllers and LiveViews using an attr-style syntax similar to Phoenix Components.
 
 ## Features
 
@@ -20,12 +20,12 @@ Pex provides a flexible, plugin-based system for validating and casting paramete
 
 ## Installation
 
-Add `pex` to your list of dependencies in `mix.exs`:
+Add `filtr` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
   [
-    {:pex, "~> 0.1.0"}
+    {:filtr, "~> 0.1.0"}
   ]
 end
 ```
@@ -37,7 +37,7 @@ end
 ```elixir
 defmodule MyAppWeb.UserController do
   use MyAppWeb, :controller
-  use Pex.Controller, error_mode: :raise
+  use Filtr.Controller, error_mode: :raise
 
   param :name, :string, required: true
   param :age, :integer, min: 18, max: 120
@@ -68,15 +68,15 @@ end
 ```elixir
 defmodule MyAppWeb.SearchLive do
   use MyAppWeb, :live_view
-  use Pex.LiveView, error_mode: :raise
+  use Filtr.LiveView, error_mode: :raise
 
   param :query, :string, required: true, min: 1
   param :limit, :integer, default: 10, min: 1, max: 100
 
   def mount(_params, _session, socket) do
-    # socket.assigns.pex contains validated params
-    # socket.assigns.pex.query - validated query string
-    # socket.assigns.pex.limit - validated limit (defaults to 10)
+    # socket.assigns.filtr contains validated params
+    # socket.assigns.filtr.query - validated query string
+    # socket.assigns.filtr.limit - validated limit (defaults to 10)
     {:ok, socket}
   end
 
@@ -102,13 +102,13 @@ params = %{
   "tags" => ["elixir", "phoenix"]
 }
 
-result = Pex.run(schema, params, error_mode: :raise)
+result = Filtr.run(schema, params, error_mode: :raise)
 # %{name: "John Doe", age: 25, tags: ["elixir", "phoenix"]}
 ```
 
 ## Error Modes
 
-Pex supports three error handling modes:
+Filtr supports three error handling modes:
 
 ### Fallback Mode (Default)
 
@@ -118,7 +118,7 @@ Returns default values or nil on validation errors:
 schema = %{age: [type: :integer, validators: [default: 18]]}
 params = %{"age" => "invalid"}
 
-Pex.run(schema, params, error_mode: :fallback)
+Filtr.run(schema, params, error_mode: :fallback)
 # %{age: 18}
 ```
 
@@ -130,7 +130,7 @@ Returns error tuples for invalid values:
 schema = %{age: [type: :integer, validators: [min: 18]]}
 params = %{"age" => "10"}
 
-Pex.run(schema, params, error_mode: :strict)
+Filtr.run(schema, params, error_mode: :strict)
 # %{age: {:error, ["must be at least 18"]}}
 ```
 
@@ -142,7 +142,7 @@ Raises exceptions on validation errors:
 schema = %{name: [type: :string, validators: [required: true]]}
 params = %{}
 
-Pex.run(schema, params, error_mode: :raise)
+Filtr.run(schema, params, error_mode: :raise)
 # ** (RuntimeError) Invalid value for name: required
 ```
 
@@ -152,14 +152,14 @@ Set a default error mode in your config:
 
 ```elixir
 # config/config.exs
-config :pex, error_mode: :strict
+config :filtr, error_mode: :strict
 ```
 
 Or specify per-module:
 
 ```elixir
-use Pex.Controller, error_mode: :strict
-use Pex.LiveView, error_mode: :raise
+use Filtr.Controller, error_mode: :strict
+use Filtr.LiveView, error_mode: :raise
 ```
 
 ## Advanced Features
@@ -189,7 +189,7 @@ params = %{
   }
 }
 
-result = Pex.run(schema, params)
+result = Filtr.run(schema, params)
 # %{
 #   user: %{name: "John", email: "john@example.com"},
 #   settings: %{theme: "dark", notifications: true}
@@ -220,7 +220,7 @@ upcase_cast = fn value, _opts -> {:ok, String.upcase(value)} end
 schema = %{name: [type: upcase_cast]}
 params = %{"name" => "john"}
 
-Pex.run(schema, params)
+Filtr.run(schema, params)
 # %{name: "JOHN"}
 ```
 
@@ -278,7 +278,7 @@ You can override the error mode for individual fields, allowing fine-grained con
 
 ```elixir
 defmodule MyAppWeb.UserController do
-  use Pex.Controller, error_mode: :strict
+  use Filtr.Controller, error_mode: :strict
 
   # Override for specific param - won't raise, will use fallback
   param :optional_field, :string, [default: ""], error_mode: :fallback
@@ -309,11 +309,11 @@ schema = %{
 
 ## Plugin System
 
-Extend Pex with custom types and validators:
+Extend Filtr with custom types and validators:
 
 ```elixir
 defmodule MyApp.MoneyPlugin do
-  use Pex.Plugin
+  use Filtr.Plugin
 
   @impl true
   def types, do: [:money]
@@ -346,7 +346,7 @@ Register the plugin in your config:
 
 ```elixir
 # config/config.exs
-config :pex, plugins: [MyApp.MoneyPlugin]
+config :filtr, plugins: [MyApp.MoneyPlugin]
 ```
 
 Use your custom type:
@@ -366,7 +366,7 @@ The `types/0` callback declares which types your plugin handles. This is a requi
 def types, do: [:money, :currency, :price]
 ```
 
-Pex uses this information to build a type-to-plugin mapping at compile time. When processing a parameter, Pex looks up which plugins support that type and tries them in order.
+Filtr uses this information to build a type-to-plugin mapping at compile time. When processing a parameter, Filtr looks up which plugins support that type and tries them in order.
 
 #### `cast/3`
 
@@ -394,7 +394,7 @@ end
 - `{:error, error_message}` - Single error message
 - `{:error, [error1, error2, ...]}` - Multiple error messages
 
-If your plugin doesn't implement `cast/3` for a specific type or the function clause doesn't match, Pex will try the next plugin in the chain.
+If your plugin doesn't implement `cast/3` for a specific type or the function clause doesn't match, Filtr will try the next plugin in the chain.
 
 #### `validate/4`
 
@@ -426,14 +426,14 @@ end
 - `:error` or `false` - Validation failed (returns generic "invalid value" error)
 - `{:error, error_message}` - Validation failed with specific message
 
-The validator parameter is a tuple like `{:min, 100}` or `{:in, ["USD", "EUR"]}`. Your plugin only needs to implement validators it supports - if a validator isn't recognized, Pex will try the next plugin in the chain.
+The validator parameter is a tuple like `{:min, 100}` or `{:in, ["USD", "EUR"]}`. Your plugin only needs to implement validators it supports - if a validator isn't recognized, Filtr will try the next plugin in the chain.
 
 ### Plugin Priority
 
 Plugins are processed in reverse order, with later plugins taking precedence:
 
 ```elixir
-config :pex, plugins: [PluginA, PluginB]
+config :filtr, plugins: [PluginA, PluginB]
 
 # PluginB is tried first, then PluginA, then DefaultPlugin
 ```
@@ -442,7 +442,7 @@ This allows you to override built-in types:
 
 ```elixir
 defmodule MyApp.CustomStringPlugin do
-  use Pex.Plugin
+  use Filtr.Plugin
 
   @impl true
   def types, do: [:string]
@@ -456,22 +456,22 @@ defmodule MyApp.CustomStringPlugin do
   @impl true
   def validate(value, :string, validator, opts) do
     # Delegate to default string validators
-    Pex.DefaultPlugin.Validate.validate(value, :string, validator, opts)
+    Filtr.DefaultPlugin.Validate.validate(value, :string, validator, opts)
   end
 end
 ```
 
 #### Cast and Validate Precedence
 
-When multiple plugins support the same type, Pex tries them in reverse order (later plugins first). If a plugin doesn't implement `cast/3` or `validate/4` for a specific case, or if the function clause doesn't match, Pex automatically falls through to the next plugin in the chain.
+When multiple plugins support the same type, Filtr tries them in reverse order (later plugins first). If a plugin doesn't implement `cast/3` or `validate/4` for a specific case, or if the function clause doesn't match, Filtr automatically falls through to the next plugin in the chain.
 
 **Example:**
 
 ```elixir
 # config/config.exs
-config :pex, plugins: [PluginA, PluginB, PluginC]
+config :filtr, plugins: [PluginA, PluginB, PluginC]
 
-# Pex tries plugins in this order:
+# Filtr tries plugins in this order:
 # 1. PluginC
 # 2. PluginB
 # 3. PluginA
@@ -482,7 +482,7 @@ config :pex, plugins: [PluginA, PluginB, PluginC]
 
 ```elixir
 defmodule MyPlugin do
-  use Pex.Plugin
+  use Filtr.Plugin
 
   @impl true
   def types, do: [:string]
@@ -512,7 +512,7 @@ This allows you to:
 
 ### Default Plugin
 
-Pex includes a built-in `DefaultPlugin` that provides support for common data types. This plugin is always included and runs last in the plugin chain, so custom plugins can override its behavior.
+Filtr includes a built-in `DefaultPlugin` that provides support for common data types. This plugin is always included and runs last in the plugin chain, so custom plugins can override its behavior.
 
 **Supported types:**
 
@@ -566,6 +566,6 @@ You can always delegate to the DefaultPlugin from your custom plugins:
 @impl true
 def validate(value, :string, validator, opts) do
   # Use default string validators
-  Pex.DefaultPlugin.Validate.validate(value, :string, validator, opts)
+  Filtr.DefaultPlugin.Validate.validate(value, :string, validator, opts)
 end
 ```

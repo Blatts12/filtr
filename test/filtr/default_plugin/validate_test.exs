@@ -1,7 +1,7 @@
-defmodule Pex.DefaultPlugin.ValidateTest do
+defmodule Filtr.DefaultPlugin.ValidateTest do
   use ExUnit.Case, async: true
 
-  alias Pex.DefaultPlugin.Validate
+  alias Filtr.DefaultPlugin.Validate
 
   describe "validate/4 - string validators" do
     test "validates exact length" do

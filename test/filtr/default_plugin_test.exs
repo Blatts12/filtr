@@ -1,7 +1,7 @@
-defmodule Pex.DefaultPluginTest do
+defmodule Filtr.DefaultPluginTest do
   use ExUnit.Case, async: true
 
-  alias Pex.DefaultPlugin
+  alias Filtr.DefaultPlugin
 
   describe "types/0" do
     test "returns all supported types" do

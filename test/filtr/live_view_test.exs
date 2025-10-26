@@ -1,10 +1,10 @@
-defmodule Pex.LiveViewTest do
+defmodule Filtr.LiveViewTest do
   use ExUnit.Case, async: true
 
   import Phoenix.ConnTest
   import Phoenix.LiveViewTest
 
-  alias Pex.LiveViewTest.Endpoint
+  alias Filtr.LiveViewTest.Endpoint
   alias Plug.Conn.WrapperError
 
   @endpoint Endpoint
@@ -14,25 +14,25 @@ defmodule Pex.LiveViewTest do
 
     test "default values in assigns with no params", %{conn: conn} do
       {:ok, lv, _html} = live(conn, "/default")
-      assert %{limit: 10, query: nil} = get_assigns(lv).pex
+      assert %{limit: 10, query: nil} = get_assigns(lv).filtr
     end
 
     test "correct values in assigns with valid params", %{conn: conn} do
       {:ok, lv, _html} = live(conn, "/default?query=elixir&limit=5")
-      assert %{limit: 5, query: "elixir"} = get_assigns(lv).pex
+      assert %{limit: 5, query: "elixir"} = get_assigns(lv).filtr
     end
 
     test "default values in assigns with invalid params", %{conn: conn} do
       {:ok, lv, _html} = live(conn, "/default?query=elixir&limit=invalid")
-      assert %{limit: 10, query: "elixir"} = get_assigns(lv).pex
+      assert %{limit: 10, query: "elixir"} = get_assigns(lv).filtr
 
       {:ok, lv, _html} = live(conn, "/default?query=123&limit=1")
-      assert %{limit: 10, query: "123"} = get_assigns(lv).pex
+      assert %{limit: 10, query: "123"} = get_assigns(lv).filtr
     end
 
     test "default and correct values in assigns with one missing param", %{conn: conn} do
       {:ok, lv, _html} = live(conn, "/default?query=elixir")
-      assert %{limit: 10, query: "elixir"} = get_assigns(lv).pex
+      assert %{limit: 10, query: "elixir"} = get_assigns(lv).filtr
     end
   end
 
@@ -41,25 +41,25 @@ defmodule Pex.LiveViewTest do
 
     test "default values in assigns with no params", %{conn: conn} do
       {:ok, lv, _html} = live(conn, "/fallback")
-      assert %{limit: 10, query: nil} = get_assigns(lv).pex
+      assert %{limit: 10, query: nil} = get_assigns(lv).filtr
     end
 
     test "correct values in assigns with valid params", %{conn: conn} do
       {:ok, lv, _html} = live(conn, "/fallback?query=elixir&limit=5")
-      assert %{limit: 5, query: "elixir"} = get_assigns(lv).pex
+      assert %{limit: 5, query: "elixir"} = get_assigns(lv).filtr
     end
 
     test "default values in assigns with invalid params", %{conn: conn} do
       {:ok, lv, _html} = live(conn, "/fallback?query=elixir&limit=invalid")
-      assert %{limit: 10, query: "elixir"} = get_assigns(lv).pex
+      assert %{limit: 10, query: "elixir"} = get_assigns(lv).filtr
 
       {:ok, lv, _html} = live(conn, "/fallback?query=123&limit=1")
-      assert %{limit: 10, query: "123"} = get_assigns(lv).pex
+      assert %{limit: 10, query: "123"} = get_assigns(lv).filtr
     end
 
     test "default and correct values in assigns with one missing param", %{conn: conn} do
       {:ok, lv, _html} = live(conn, "/fallback?query=elixir")
-      assert %{limit: 10, query: "elixir"} = get_assigns(lv).pex
+      assert %{limit: 10, query: "elixir"} = get_assigns(lv).filtr
     end
   end
 
@@ -68,17 +68,17 @@ defmodule Pex.LiveViewTest do
 
     test "default and errored value in assigns with no params", %{conn: conn} do
       {:ok, lv, _html} = live(conn, "/strict")
-      assert %{limit: 10, query: {:error, ["required"]}} = get_assigns(lv).pex
+      assert %{limit: 10, query: {:error, ["required"]}} = get_assigns(lv).filtr
     end
 
     test "correct values in assigns with valid params", %{conn: conn} do
       {:ok, lv, _html} = live(conn, "/strict?query=elixir&limit=5")
-      assert %{limit: 5, query: "elixir"} = get_assigns(lv).pex
+      assert %{limit: 5, query: "elixir"} = get_assigns(lv).filtr
     end
 
     test "default and correct values in assigns with one missing param", %{conn: conn} do
       {:ok, lv, _html} = live(conn, "/strict?query=elixir")
-      assert %{limit: 10, query: "elixir"} = get_assigns(lv).pex
+      assert %{limit: 10, query: "elixir"} = get_assigns(lv).filtr
     end
   end
 
@@ -99,7 +99,7 @@ defmodule Pex.LiveViewTest do
 
     test "does not raise an error with missing optional param", %{conn: conn} do
       {:ok, lv, _html} = live(conn, "/raise?query=elixir")
-      assert %{limit: 10, query: "elixir"} = get_assigns(lv).pex
+      assert %{limit: 10, query: "elixir"} = get_assigns(lv).filtr
     end
   end
 
@@ -107,8 +107,8 @@ defmodule Pex.LiveViewTest do
     test "creates module without params" do
       module =
         defmodule TestLiveView do
-          use Phoenix.LiveView, namespace: Pex
-          use Pex.LiveView
+          use Phoenix.LiveView, namespace: Filtr
+          use Filtr.LiveView
         end
 
       assert {_, _, _, {:on_mount, 4}} = module
@@ -118,8 +118,8 @@ defmodule Pex.LiveViewTest do
       module =
         defmodule TestLiveViewParams do
           @moduledoc false
-          use Phoenix.LiveView, namespace: Pex
-          use Pex.LiveView
+          use Phoenix.LiveView, namespace: Filtr
+          use Filtr.LiveView
 
           param :name, :string
           param :age, :integer, default: 25, required: true
@@ -132,8 +132,8 @@ defmodule Pex.LiveViewTest do
       assert_raise ArgumentError, fn ->
         defmodule TestInvalidErrorMode do
           @moduledoc false
-          use Phoenix.LiveView, namespace: Pex
-          use Pex.LiveView, error_mode: :invalid
+          use Phoenix.LiveView, namespace: Filtr
+          use Filtr.LiveView, error_mode: :invalid
         end
       end
     end

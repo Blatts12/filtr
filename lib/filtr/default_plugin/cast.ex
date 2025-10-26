@@ -1,7 +1,7 @@
-defmodule Pex.DefaultPlugin.Cast do
+defmodule Filtr.DefaultPlugin.Cast do
   @moduledoc false
 
-  @spec cast(value :: any(), type :: atom(), opts :: keyword()) :: Pex.Plugin.cast_result()
+  @spec cast(value :: any(), type :: atom(), opts :: keyword()) :: Filtr.Plugin.cast_result()
 
   # String
   def cast(value, :string, _opts) when is_binary(value), do: {:ok, value}

@@ -1,7 +1,7 @@
-defmodule Pex.LiveViewTest.DefaultLive do
+defmodule Filtr.LiveViewTest.DefaultLive do
   @moduledoc false
-  use Phoenix.LiveView, namespace: Pex
-  use Pex.LiveView
+  use Phoenix.LiveView, namespace: Filtr
+  use Filtr.LiveView
 
   param :query, :string, required: true
   param :limit, :integer, min: 5, default: 10

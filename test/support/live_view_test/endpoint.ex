@@ -1,8 +1,8 @@
-defmodule Pex.LiveViewTest.EndpointOverridable do
+defmodule Filtr.LiveViewTest.EndpointOverridable do
   @moduledoc false
   defmacro __before_compile__(_env) do
     quote do
-      alias Pex.LiveViewTest.LiveRouter
+      alias Filtr.LiveViewTest.LiveRouter
 
       @parsers Plug.Parsers.init(
                  parsers: [:urlencoded, :multipart, :json],
@@ -22,10 +22,10 @@ defmodule Pex.LiveViewTest.EndpointOverridable do
   end
 end
 
-defmodule Pex.LiveViewTest.Endpoint do
+defmodule Filtr.LiveViewTest.Endpoint do
   use Phoenix.Endpoint, otp_app: :phoenix_live_view
 
-  alias Pex.LiveViewTest.EndpointOverridable
+  alias Filtr.LiveViewTest.EndpointOverridable
   alias Phoenix.LiveView.PubSub
   alias Phoenix.LiveView.Socket
 

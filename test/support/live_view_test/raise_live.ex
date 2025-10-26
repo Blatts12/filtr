@@ -1,7 +1,7 @@
-defmodule Pex.LiveViewTest.RaiseLive do
+defmodule Filtr.LiveViewTest.RaiseLive do
   @moduledoc false
-  use Phoenix.LiveView, namespace: Pex
-  use Pex.LiveView, error_mode: :raise
+  use Phoenix.LiveView, namespace: Filtr
+  use Filtr.LiveView, error_mode: :raise
 
   param :query, :string, required: true
   param :limit, :integer, min: 5, default: 10

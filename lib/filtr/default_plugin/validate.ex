@@ -1,8 +1,8 @@
-defmodule Pex.DefaultPlugin.Validate do
+defmodule Filtr.DefaultPlugin.Validate do
   @moduledoc false
 
   @spec validate(value :: any(), type :: atom(), validator :: {atom(), term()}, opts :: keyword()) ::
-          Pex.Plugin.validate_result()
+          Filtr.Plugin.validate_result()
 
   # String
   def validate(value, :string, {:length, length}, _opts) do

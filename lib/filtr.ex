@@ -1,7 +1,7 @@
-defmodule Pex do
+defmodule Filtr do
   @moduledoc false
 
-  alias Pex.Helpers
+  alias Filtr.Helpers
 
   @type_plugin_map Helpers.type_plugin_map()
 

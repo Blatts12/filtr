@@ -1,4 +1,4 @@
-Application.put_env(:pex, :env, :test)
+Application.put_env(:filtr, :env, :test)
 ExUnit.start()
 Logger.configure(level: :error)
 Application.ensure_all_started(:phoenix_live_view)

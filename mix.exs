@@ -1,9 +1,9 @@
-defmodule Pex.MixProject do
+defmodule Filtr.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :pex,
+      app: :filtr,
       version: "0.1.0",
       elixir: "~> 1.13",
       elixirc_paths: elixirc_paths(Mix.env()),

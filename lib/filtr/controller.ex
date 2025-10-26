@@ -1,4 +1,4 @@
-defmodule Pex.Controller do
+defmodule Filtr.Controller do
   @moduledoc """
   Provides Phoenix Controller integration with attr-style parameter definitions.
 
@@ -9,7 +9,7 @@ defmodule Pex.Controller do
 
       defmodule MyAppWeb.UserController do
         use MyAppWeb, :controller
-        use Pex.Controller
+        use Filtr.Controller
 
         param :name, :string, required: true
         param :age, :integer, min: 18
@@ -41,13 +41,13 @@ defmodule Pex.Controller do
     end
 
     quote do
-      import Pex.Controller, only: [param: 2, param: 3, param: 4]
+      import Filtr.Controller, only: [param: 2, param: 3, param: 4]
 
-      Module.register_attribute(__MODULE__, :pex_param_definitions, accumulate: true)
-      Module.register_attribute(__MODULE__, :pex_function_params, accumulate: true)
-      @pex_error_mode unquote(error_mode)
-      @on_definition Pex.Controller
-      @before_compile Pex.Controller
+      Module.register_attribute(__MODULE__, :filtr_param_definitions, accumulate: true)
+      Module.register_attribute(__MODULE__, :filtr_function_params, accumulate: true)
+      @filtr_error_mode unquote(error_mode)
+      @on_definition Filtr.Controller
+      @before_compile Filtr.Controller
     end
   end
 
@@ -63,26 +63,26 @@ defmodule Pex.Controller do
   """
   defmacro param(name, type, validators \\ [], opts \\ []) do
     quote do
-      @pex_param_definitions {unquote(name), [type: unquote(type), validators: unquote(validators)] ++ unquote(opts)}
+      @filtr_param_definitions {unquote(name), [type: unquote(type), validators: unquote(validators)] ++ unquote(opts)}
     end
   end
 
   def __on_definition__(env, kind, name, args, _guards, _body) do
     if kind == :def and length(args) == 2 and not String.starts_with?(to_string(name), "__") do
       # This is likely a controller function
-      param_definitions = Module.get_attribute(env.module, :pex_param_definitions, [])
+      param_definitions = Module.get_attribute(env.module, :filtr_param_definitions, [])
 
       if not Enum.empty?(param_definitions) do
         schema = Map.new(param_definitions)
-        Module.put_attribute(env.module, :pex_function_params, {name, schema})
+        Module.put_attribute(env.module, :filtr_function_params, {name, schema})
 
-        Module.delete_attribute(env.module, :pex_param_definitions)
+        Module.delete_attribute(env.module, :filtr_param_definitions)
       end
     end
   end
 
   defmacro __before_compile__(env) do
-    function_params = Module.get_attribute(env.module, :pex_function_params, [])
+    function_params = Module.get_attribute(env.module, :filtr_function_params, [])
 
     wrappers =
       for {function_name, schema} <- function_params do
@@ -99,7 +99,7 @@ defmodule Pex.Controller do
       defoverridable [{unquote(function_name), 2}]
 
       def unquote(function_name)(conn, params) do
-        validated_params = Pex.run(unquote(Macro.escape(schema)), params, error_mode: @pex_error_mode)
+        validated_params = Filtr.run(unquote(Macro.escape(schema)), params, error_mode: @filtr_error_mode)
         super(conn, validated_params)
       end
     end

@@ -1,7 +1,7 @@
-defmodule Pex.DefaultPlugin.CastTest do
+defmodule Filtr.DefaultPlugin.CastTest do
   use ExUnit.Case, async: true
 
-  alias Pex.DefaultPlugin.Cast
+  alias Filtr.DefaultPlugin.Cast
 
   describe "cast/3 - string" do
     test "casts valid string" do

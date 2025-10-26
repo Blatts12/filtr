@@ -1,16 +1,16 @@
-defmodule Pex.LiveViewTest.LiveRouter do
+defmodule Filtr.LiveViewTest.LiveRouter do
   @moduledoc false
 
   use Phoenix.Router
 
   import Phoenix.LiveView.Router
 
-  alias Pex.LiveViewTest.DefaultLive
-  alias Pex.LiveViewTest.FallbackLive
-  alias Pex.LiveViewTest.RaiseLive
-  alias Pex.LiveViewTest.StrictLive
+  alias Filtr.LiveViewTest.DefaultLive
+  alias Filtr.LiveViewTest.FallbackLive
+  alias Filtr.LiveViewTest.RaiseLive
+  alias Filtr.LiveViewTest.StrictLive
 
-  live_session :pex do
+  live_session :filtr do
     live("/fallback", FallbackLive)
     live("/strict", StrictLive)
     live("/raise", RaiseLive)

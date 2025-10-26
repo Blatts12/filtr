@@ -1,8 +1,8 @@
-defmodule Pex.ControllerTest do
+defmodule Filtr.ControllerTest do
   use ExUnit.Case, async: true
 
   defmodule TestController do
-    use Pex.Controller
+    use Filtr.Controller
 
     param :name, :string, required: true
     param :age, :integer, min: 18
@@ -32,7 +32,7 @@ defmodule Pex.ControllerTest do
   end
 
   defmodule StrictModeController do
-    use Pex.Controller, error_mode: :strict
+    use Filtr.Controller, error_mode: :strict
 
     param :name, :string, required: true
 
@@ -42,7 +42,7 @@ defmodule Pex.ControllerTest do
   end
 
   defmodule RaiseModeController do
-    use Pex.Controller, error_mode: :raise
+    use Filtr.Controller, error_mode: :raise
 
     param :name, :string, required: true
 
@@ -173,7 +173,7 @@ defmodule Pex.ControllerTest do
     test "renders without params" do
       module =
         defmodule TestFallbackController do
-          use Pex.Controller, error_mode: :fallback
+          use Filtr.Controller, error_mode: :fallback
         end
 
       assert {_, _, _, :ok} = module
@@ -182,7 +182,7 @@ defmodule Pex.ControllerTest do
     test "renders with params" do
       module =
         defmodule TestFallbackParamController do
-          use Pex.Controller, error_mode: :fallback
+          use Filtr.Controller, error_mode: :fallback
 
           param :user, :string, required: true
 
@@ -197,7 +197,7 @@ defmodule Pex.ControllerTest do
     test "renders and ignores param without function" do
       module =
         defmodule TestFallbackNoParamController do
-          use Pex.Controller, error_mode: :fallback
+          use Filtr.Controller, error_mode: :fallback
 
           param :user, :string, required: true
         end
@@ -208,7 +208,7 @@ defmodule Pex.ControllerTest do
     test "raises on invalid error mode" do
       assert_raise ArgumentError, fn ->
         defmodule TestInvalidErrorModeController do
-          use Pex.Controller, error_mode: :invalid
+          use Filtr.Controller, error_mode: :invalid
         end
       end
     end

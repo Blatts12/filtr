@@ -17,7 +17,7 @@ erl_crash.dump
 *.ez
 
 # Ignore package tarball (built via "mix hex.build").
-pex-*.tar
+filtr-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
@@ -28,7 +28,3 @@ pex-*.tar
 # AI Stuff
 /.claude/
 CLAUDE.md
-
-# Test app fixtures
-test/fixtures/*/_build
-test/fixtures/*/deps
