@@ -28,3 +28,7 @@ pex-*.tar
 # AI Stuff
 /.claude/
 CLAUDE.md
+
+# Test app fixtures
+test/fixtures/*/_build
+test/fixtures/*/deps

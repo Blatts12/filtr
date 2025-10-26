@@ -165,7 +165,7 @@ defmodule Pex do
       try do
         plugin.cast(value, type, opts)
       catch
-        _ -> {:cont, result}
+        FunctionClauseError -> {:cont, result}
       else
         result -> {:halt, result}
       end
@@ -177,7 +177,7 @@ defmodule Pex do
       try do
         plugin.validate(value, type, validator, opts)
       catch
-        _ -> {:cont, result}
+        FunctionClauseError -> {:cont, result}
       else
         result -> {:halt, result}
       end
