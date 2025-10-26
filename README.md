@@ -162,16 +162,6 @@ use Pex.Controller, error_mode: :strict
 use Pex.LiveView, error_mode: :raise
 ```
 
-## Supported Types
-
-- string
-- integer
-- float
-- boolean
-- date
-- date time
-- list
-
 ## Advanced Features
 
 ### Nested Schemas
@@ -282,6 +272,30 @@ param :email, :string, required: true, pattern: ~r/@/
 param :role, :string, required: true, default: "user"
 ```
 
+### Error Mode Per Field
+
+You can override the error mode for individual fields, allowing fine-grained control over error handling:
+
+```elixir
+defmodule MyAppWeb.UserController do
+  use Pex.Controller, error_mode: :strict
+
+  # Override for specific param - won't raise, will use fallback
+  param :optional_field, :string, [default: ""], error_mode: :fallback
+  param :required_field, :string, required: true  # Uses :strict from module
+
+  def create(conn, params) do
+    # params.optional_field will be "" if invalid or missing
+    # params.required_field will be {:error, [...]} if invalid
+  end
+end
+```
+
+**Use cases:**
+- **Critical fields** - Use `:raise` or `:strict` for fields that must be valid
+- **Optional fields** - Use `:fallback` with defaults for non-critical data
+- **Mixed validation** - Combine modes to handle different requirements in the same schema
+
 ### Type Passthrough
 
 For parameters that don't need validation:
@@ -343,6 +357,77 @@ param :price, :money, min_amount: 100, max_amount: 100_000
 # Accepts: "$12.99", "1,234.56", 1299 (as cents)
 ```
 
+#### `types/0`
+
+The `types/0` callback declares which types your plugin handles. This is a required callback that returns a list of atoms:
+
+```elixir
+@impl true
+def types, do: [:money, :currency, :price]
+```
+
+Pex uses this information to build a type-to-plugin mapping at compile time. When processing a parameter, Pex looks up which plugins support that type and tries them in order.
+
+#### `cast/3`
+
+The `cast/3` callback is an optional callback that converts raw parameter values into the desired type. It receives the value to cast, the type atom, and options:
+
+```elixir
+@impl true
+def cast(value, :money, _opts) when is_binary(value) do
+  cleaned = String.replace(value, ~r/[$,]/, "")
+
+  case Float.parse(cleaned) do
+    {amount, _} -> {:ok, trunc(amount * 100)}
+    :error -> {:error, "invalid money format"}
+  end
+end
+
+def cast(value, :money, _opts) when is_integer(value) do
+  {:ok, value}
+end
+```
+
+**Return values:**
+
+- `{:ok, casted_value}` - Successfully casted the value
+- `{:error, error_message}` - Single error message
+- `{:error, [error1, error2, ...]}` - Multiple error messages
+
+If your plugin doesn't implement `cast/3` for a specific type or the function clause doesn't match, Pex will try the next plugin in the chain.
+
+#### `validate/4`
+
+The `validate/4` callback is an optional callback that validates a casted value against specific validation rules. It receives the value, type, validator tuple, and options:
+
+```elixir
+@impl true
+def validate(value, :money, {:min, min}, _opts) do
+  if value >= min, do: :ok, else: {:error, "amount too small"}
+end
+
+def validate(value, :money, {:max, max}, _opts) do
+  if value <= max, do: :ok, else: {:error, "amount too large"}
+end
+
+def validate(value, :money, {:currency, currency}, _opts) do
+  # Custom currency validation
+  if valid_currency?(value, currency) do
+    :ok
+  else
+    {:error, "invalid currency"}
+  end
+end
+```
+
+**Return values:**
+
+- `:ok` or `true` or `{:ok, any()}` - Validation passed
+- `:error` or `false` - Validation failed (returns generic "invalid value" error)
+- `{:error, error_message}` - Validation failed with specific message
+
+The validator parameter is a tuple like `{:min, 100}` or `{:in, ["USD", "EUR"]}`. Your plugin only needs to implement validators it supports - if a validator isn't recognized, Pex will try the next plugin in the chain.
+
 ### Plugin Priority
 
 Plugins are processed in reverse order, with later plugins taking precedence:
@@ -373,5 +458,114 @@ defmodule MyApp.CustomStringPlugin do
     # Delegate to default string validators
     Pex.DefaultPlugin.Validate.validate(value, :string, validator, opts)
   end
+end
+```
+
+#### Cast and Validate Precedence
+
+When multiple plugins support the same type, Pex tries them in reverse order (later plugins first). If a plugin doesn't implement `cast/3` or `validate/4` for a specific case, or if the function clause doesn't match, Pex automatically falls through to the next plugin in the chain.
+
+**Example:**
+
+```elixir
+# config/config.exs
+config :pex, plugins: [PluginA, PluginB, PluginC]
+
+# Pex tries plugins in this order:
+# 1. PluginC
+# 2. PluginB
+# 3. PluginA
+# 4. DefaultPlugin (always last)
+```
+
+**How fallthrough works:**
+
+```elixir
+defmodule MyPlugin do
+  use Pex.Plugin
+
+  @impl true
+  def types, do: [:string]
+
+  @impl true
+  def cast(value, :string, _opts) when is_binary(value) do
+    {:ok, String.trim(value)}
+  end
+
+  @impl true
+  # Only implement :min validator, others fall through
+  def validate(value, :string, {:min, min}, _opts) do
+    if String.length(value) >= min, do: :ok, else: {:error, "too short"}
+  end
+end
+
+# When using :max validator, it falls through to DefaultPlugin
+param :name, :string, min: 2, max: 50
+# :min uses MyPlugin, :max uses DefaultPlugin
+```
+
+This allows you to:
+
+- Override specific validators while keeping others
+- Add new validators to existing types
+- Completely replace type handling when needed
+
+### Default Plugin
+
+Pex includes a built-in `DefaultPlugin` that provides support for common data types. This plugin is always included and runs last in the plugin chain, so custom plugins can override its behavior.
+
+**Supported types:**
+
+- `:string` - Text values
+- `:integer` - Whole numbers (parses from strings)
+- `:float` - Decimal numbers (parses from strings)
+- `:boolean` - True/false values (accepts "true", "false", "1", "0", "yes", "no")
+- `:date` - Date values (accepts Date structs, NaiveDateTime structs, DateTime structs, or ISO8601 strings)
+- `:datetime` - DateTime values (accepts DateTime structs, NaiveDateTime structs, or ISO8601 strings)
+- `:list` - List values (accepts arrays or comma-separated strings)
+
+**Available validators:**
+
+**String validators:**
+
+- `min: n` - Minimum length
+- `max: n` - Maximum length
+- `length: n` - Exact length
+- `pattern: regex` - Must match regex pattern
+- `starts_with: prefix` - Must start with prefix
+- `ends_with: suffix` - Must end with suffix
+- `contains: substring` - Must contain substring
+- `alphanumeric: true` - Only letters and numbers
+- `in: list` - Must be one of the listed values
+
+**Integer/Float validators:**
+
+- `min: n` - Minimum value
+- `max: n` - Maximum value
+- `positive: true` - Must be > 0
+- `negative: true` - Must be < 0
+- `in: list` - Must be one of the listed values
+
+**Date/DateTime validators:**
+
+- `min: date` - Must be after or equal to
+- `max: date` - Must be before or equal to
+
+**List validators:**
+
+- `min: n` - Minimum number of items
+- `max: n` - Maximum number of items
+- `length: n` - Exact number of items
+- `unique: true` - All items must be unique
+- `non_empty: true` - List cannot be empty
+- `in: list` - All items must be from the allowed list
+
+You can always delegate to the DefaultPlugin from your custom plugins:
+
+```elixir
+@impl true
+def validate(value, :string, validator, opts) do
+  # Use default string validators
+  Pex.DefaultPlugin.Validate.validate(value, :string, validator, opts)
 end
 ```

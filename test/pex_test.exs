@@ -549,4 +549,146 @@ defmodule PexTest do
       assert {:error, ["required"]} = result.name
     end
   end
+
+  describe "error mode per field" do
+    test "allows mixing error modes across multiple fields" do
+      schema = %{
+        email: [type: :string, validators: [required: true, pattern: ~r/@/], error_mode: :strict],
+        age: [type: :integer, validators: [min: 18, default: 18], error_mode: :fallback],
+        id: [type: :integer, validators: [required: true], error_mode: :raise]
+      }
+
+      params = %{"email" => "invalid", "age" => "10"}
+
+      # id field with :raise should raise
+      assert_raise RuntimeError, ~r/Invalid value for id: required/, fn ->
+        Pex.run(schema, params)
+      end
+    end
+
+    test "strict mode field returns error tuple while fallback field returns default" do
+      schema = %{
+        email: [type: :string, validators: [required: true], error_mode: :strict],
+        optional_field: [type: :string, validators: [default: "default"], error_mode: :fallback]
+      }
+
+      params = %{}
+
+      result = Pex.run(schema, params)
+      assert {:error, ["required"]} = result.email
+      assert result.optional_field == "default"
+    end
+
+    test "fallback field ignores global strict mode" do
+      schema = %{
+        critical: [type: :integer, validators: [required: true]],
+        optional: [type: :integer, validators: [default: 0], error_mode: :fallback]
+      }
+
+      params = %{"critical" => "10", "optional" => "invalid"}
+
+      result = Pex.run(schema, params, error_mode: :strict)
+      assert result.critical == 10
+      assert result.optional == 0
+    end
+
+    test "strict field overrides global fallback mode" do
+      schema = %{
+        critical: [type: :integer, validators: [required: true], error_mode: :strict],
+        optional: [type: :string, validators: [default: "default"]]
+      }
+
+      params = %{"optional" => "value"}
+
+      result = Pex.run(schema, params, error_mode: :fallback)
+      assert {:error, ["required"]} = result.critical
+      assert result.optional == "value"
+    end
+
+    test "raise field overrides global strict mode" do
+      schema = %{
+        critical: [type: :integer, validators: [required: true], error_mode: :raise],
+        optional: [type: :string, validators: [default: "default"]]
+      }
+
+      params = %{"optional" => "value"}
+
+      assert_raise RuntimeError, ~r/Invalid value for critical: required/, fn ->
+        Pex.run(schema, params, error_mode: :strict)
+      end
+    end
+
+    test "field error mode works with validation errors" do
+      schema = %{
+        strict_field: [type: :integer, validators: [min: 18], error_mode: :strict],
+        fallback_field: [type: :integer, validators: [min: 18, default: 18], error_mode: :fallback]
+      }
+
+      params = %{"strict_field" => "10", "fallback_field" => "10"}
+
+      result = Pex.run(schema, params)
+      assert {:error, ["must be at least 18"]} = result.strict_field
+      assert result.fallback_field == 18
+    end
+
+    test "field error mode works with cast errors" do
+      schema = %{
+        strict_field: [type: :integer, error_mode: :strict],
+        fallback_field: [type: :integer, validators: [default: 0], error_mode: :fallback]
+      }
+
+      params = %{"strict_field" => "not_an_int", "fallback_field" => "not_an_int"}
+
+      result = Pex.run(schema, params)
+      assert {:error, ["invalid integer"]} = result.strict_field
+      assert result.fallback_field == 0
+    end
+
+    test "field error mode works with nested schemas" do
+      schema = %{
+        user: %{
+          name: [type: :string, validators: [required: true], error_mode: :strict],
+          age: [type: :integer, validators: [default: 0], error_mode: :fallback]
+        }
+      }
+
+      params = %{"user" => %{"age" => "invalid"}}
+
+      result = Pex.run(schema, params, error_mode: :fallback)
+      assert {:error, ["required"]} = result.user.name
+      assert result.user.age == 0
+    end
+
+    test "all fields use same custom error mode when specified" do
+      schema = %{
+        field1: [type: :string, validators: [required: true], error_mode: :strict],
+        field2: [type: :string, validators: [required: true], error_mode: :strict],
+        field3: [type: :string, validators: [required: true], error_mode: :strict]
+      }
+
+      params = %{}
+
+      result = Pex.run(schema, params, error_mode: :fallback)
+      assert {:error, ["required"]} = result.field1
+      assert {:error, ["required"]} = result.field2
+      assert {:error, ["required"]} = result.field3
+    end
+
+    test "field error mode overrides config default" do
+      original_mode = Application.get_env(:pex, :error_mode)
+
+      Application.put_env(:pex, :error_mode, :strict)
+
+      schema = %{
+        field: [type: :string, validators: [required: true, default: "default"], error_mode: :fallback]
+      }
+
+      params = %{}
+
+      result = Pex.run(schema, params)
+      assert result.field == "default"
+
+      Application.put_env(:pex, :error_mode, original_mode)
+    end
+  end
 end
