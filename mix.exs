@@ -1,12 +1,16 @@
 defmodule Filtr.MixProject do
   use Mix.Project
 
+  @source "https://github.com/Blatts12/filtr"
+  @version "0.1.4"
+
   def project do
     [
       app: :filtr,
       description: "Parameter validation library for Elixir with Phoenix integration",
       package: package(),
-      version: "0.1.0",
+      docs: docs(),
+      version: @version,
       elixir: "~> 1.13",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
@@ -56,7 +60,16 @@ defmodule Filtr.MixProject do
   defp package do
     [
       licenses: ["MIT"],
-      links: %{"GitHub" => "https://github.com/Blatts12/filtr"}
+      links: %{"GitHub" => @source}
+    ]
+  end
+
+  defp docs do
+    [
+      main: "readme",
+      source_url: @source,
+      extras: ["README.md"],
+      source_ref: @version
     ]
   end
 end
