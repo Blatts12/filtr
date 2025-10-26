@@ -575,7 +575,7 @@ end
 - [ ] Docs in Code
 - [ ] More Tests
 - [ ] Benchmarks
-- [ ] CI
+- [ ] CI/CD
 - [ ] Improve README
 
 Distributed under the MIT License.
