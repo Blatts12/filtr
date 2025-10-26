@@ -29,6 +29,14 @@ def deps do
 end
 ```
 
+### Formatter
+
+To ensure proper formatting of the `param` macro, add `:filtr` to your `.formatter.exs` configuration:
+
+```elixir
+[import_deps: [:filtr]]
+```
+
 ## Quick Start
 
 ### Phoenix Controller
