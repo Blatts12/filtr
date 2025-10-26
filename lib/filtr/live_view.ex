@@ -21,7 +21,6 @@ defmodule Filtr.LiveView do
 
       on_mount({__MODULE__, :filtr_params})
 
-      @spec on_mount(:filtr_params, map(), map(), Socket.t()) :: {:cont, Socket.t()}
       def on_mount(:filtr_params, params, _session, socket) do
         {:cont, do_filtr_param_on_mount(socket, params)}
       end
