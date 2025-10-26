@@ -569,3 +569,11 @@ def validate(value, :string, validator, opts) do
   Filtr.DefaultPlugin.Validate.validate(value, :string, validator, opts)
 end
 ```
+
+## TODO
+
+- [ ] Docs in Code
+- [ ] More Tests
+- [ ] Benchmarks
+
+License MIT
