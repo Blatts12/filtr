@@ -514,7 +514,7 @@ This allows you to:
 
 Filtr includes a built-in `DefaultPlugin` that provides support for common data types. This plugin is always included and runs last in the plugin chain, so custom plugins can override its behavior.
 
-**Supported types:**
+#### Supported types
 
 - `:string` - Text values
 - `:integer` - Whole numbers (parses from strings)
@@ -524,7 +524,7 @@ Filtr includes a built-in `DefaultPlugin` that provides support for common data 
 - `:datetime` - DateTime values (accepts DateTime structs, NaiveDateTime structs, or ISO8601 strings)
 - `:list` - List values (accepts arrays or comma-separated strings)
 
-**Available validators:**
+#### Available validators
 
 **String validators:**
 
@@ -576,5 +576,6 @@ end
 - [ ] More Tests
 - [ ] Benchmarks
 - [ ] CI
+- [ ] Improve README
 
-License MIT
+Distributed under the MIT License.
