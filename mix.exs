@@ -4,6 +4,8 @@ defmodule Filtr.MixProject do
   def project do
     [
       app: :filtr,
+      description: "Parameter validation library for Elixir with Phoenix integration",
+      package: package(),
       version: "0.1.0",
       elixir: "~> 1.13",
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -50,4 +52,11 @@ defmodule Filtr.MixProject do
 
   defp live_view_version, do: System.get_env("LIVE_VIEW_VERSION", ">= 0.20.0")
   defp phoenix_version, do: System.get_env("PHOENIX_VERSION", ">= 1.6.0")
+
+  defp package do
+    [
+      licenses: ["MIT"],
+      links: %{"GitHub" => "https://github.com/Blatts12/filtr"}
+    ]
+  end
 end
