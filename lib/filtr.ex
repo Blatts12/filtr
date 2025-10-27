@@ -3,7 +3,7 @@ defmodule Filtr do
 
   alias Filtr.Helpers
 
-  @type_plugin_map Helpers.type_plugin_map()
+  require Logger
 
   @spec run(schema :: map(), params :: map()) :: map()
   @spec run(schema :: map(), params :: map(), opts :: keyword()) :: map()
@@ -75,7 +75,7 @@ defmodule Filtr do
   end
 
   defp cast(key, value, type, opts) do
-    plugins = @type_plugin_map[type]
+    plugins = Helpers.type_plugin_map()[type]
 
     if is_nil(plugins) do
       process_error_with_mode(key, "unsupported type - #{type}", opts)
@@ -108,7 +108,7 @@ defmodule Filtr do
           func.(value)
 
         validator ->
-          plugins = @type_plugin_map[type]
+          plugins = Helpers.type_plugin_map()[type]
           plugin_validate(plugins, value, type, validator, opts)
       end)
       |> process_validator_results()
@@ -173,14 +173,18 @@ defmodule Filtr do
   end
 
   defp plugin_validate(plugins, value, type, validator, opts) do
-    Enum.reduce_while(plugins, {:error, "missing validate for #{type}, #{inspect(validator)}"}, fn plugin, result ->
-      try do
-        plugin.validate(value, type, validator, opts)
-      catch
-        FunctionClauseError -> {:cont, result}
-      else
-        result -> {:halt, result}
+    Enum.reduce_while(
+      plugins,
+      {:error, "missing validate for #{type}, #{inspect(validator)}"},
+      fn plugin, result ->
+        try do
+          plugin.validate(value, type, validator, opts)
+        catch
+          FunctionClauseError -> {:cont, result}
+        else
+          result -> {:halt, result}
+        end
       end
-    end)
+    )
   end
 end

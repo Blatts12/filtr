@@ -74,16 +74,19 @@ defmodule Filtr.PluginTest do
   describe "all/0" do
     test "returns all registered plugins including DefaultPlugin" do
       original_plugins = Application.get_env(:filtr, :plugins, [])
+      :persistent_term.erase(:filtr_type_plugin_map)
 
       Application.delete_env(:filtr, :plugins)
 
       assert [Filtr.DefaultPlugin] = Plugin.all()
 
       Application.put_env(:filtr, :plugins, original_plugins)
+      :persistent_term.erase(:filtr_type_plugin_map)
     end
 
     test "returns plugins in correct order with DefaultPlugin first" do
       original_plugins = Application.get_env(:filtr, :plugins, [])
+      :persistent_term.erase(:filtr_type_plugin_map)
 
       defmodule FirstPlugin do
         @moduledoc false
@@ -100,12 +103,14 @@ defmodule Filtr.PluginTest do
       assert [Filtr.DefaultPlugin, FirstPlugin, SecondPlugin] = Plugin.all()
 
       Application.put_env(:filtr, :plugins, original_plugins)
+      :persistent_term.erase(:filtr_type_plugin_map)
     end
   end
 
   describe "find_for_type/1" do
     test "finds DefaultPlugin for built-in types" do
       original_plugins = Application.get_env(:filtr, :plugins, [])
+      :persistent_term.erase(:filtr_type_plugin_map)
 
       Application.delete_env(:filtr, :plugins)
 
@@ -115,10 +120,12 @@ defmodule Filtr.PluginTest do
       assert Plugin.find_for_type(:date) == [Filtr.DefaultPlugin]
 
       Application.put_env(:filtr, :plugins, original_plugins)
+      :persistent_term.erase(:filtr_type_plugin_map)
     end
 
     test "finds custom plugin for custom types" do
       original_plugins = Application.get_env(:filtr, :plugins, [])
+      :persistent_term.erase(:filtr_type_plugin_map)
 
       defmodule CustomTypePlugin do
         @moduledoc false
@@ -134,10 +141,12 @@ defmodule Filtr.PluginTest do
       assert Plugin.find_for_type(:special) == [CustomTypePlugin]
 
       Application.put_env(:filtr, :plugins, original_plugins)
+      :persistent_term.erase(:filtr_type_plugin_map)
     end
 
     test "returns nil for unsupported types" do
       original_plugins = Application.get_env(:filtr, :plugins, [])
+      :persistent_term.erase(:filtr_type_plugin_map)
 
       Application.delete_env(:filtr, :plugins)
 
@@ -145,10 +154,12 @@ defmodule Filtr.PluginTest do
       assert Plugin.find_for_type(:unknown) == nil
 
       Application.put_env(:filtr, :plugins, original_plugins)
+      :persistent_term.erase(:filtr_type_plugin_map)
     end
 
     test "later plugins are first in the list" do
       original_plugins = Application.get_env(:filtr, :plugins, [])
+      :persistent_term.erase(:filtr_type_plugin_map)
 
       defmodule FirstOverridePlugin do
         @moduledoc false
@@ -169,10 +180,12 @@ defmodule Filtr.PluginTest do
       Application.put_env(:filtr, :plugins, [FirstOverridePlugin, SecondOverridePlugin])
       assert Plugin.find_for_type(:shared_type) == [SecondOverridePlugin, FirstOverridePlugin]
       Application.put_env(:filtr, :plugins, original_plugins)
+      :persistent_term.erase(:filtr_type_plugin_map)
     end
 
     test "custom plugin can override DefaultPlugin types" do
       original_plugins = Application.get_env(:filtr, :plugins, [])
+      :persistent_term.erase(:filtr_type_plugin_map)
 
       defmodule StringOverridePlugin do
         @moduledoc false
@@ -188,6 +201,7 @@ defmodule Filtr.PluginTest do
       assert Plugin.find_for_type(:integer) == [Filtr.DefaultPlugin]
 
       Application.put_env(:filtr, :plugins, original_plugins)
+      :persistent_term.erase(:filtr_type_plugin_map)
     end
   end
 

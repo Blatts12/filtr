@@ -373,7 +373,7 @@ The `types/0` callback declares which types your plugin handles. This is a requi
 def types, do: [:money, :currency, :price]
 ```
 
-Filtr uses this information to build a type-to-plugin mapping at compile time. When processing a parameter, Filtr looks up which plugins support that type and tries them in order.
+Filtr uses this information to build a type-to-plugin mapping at runtime (cached in `:persistent_term` for performance). When processing a parameter, Filtr looks up which plugins support that type and tries them in order. The mapping is built on first use and cached for subsequent requests, giving near compile-time performance.
 
 #### `cast/3`
 
