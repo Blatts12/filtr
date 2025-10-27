@@ -579,7 +579,7 @@ end
 @impl true
 def cast(value, :upcase, opts) do
   case Filtr.DefaultPlugin.Cast.cast(value, :string, opts) do
-    {:ok, value} -> String.upcase(value)
+    {:ok, value} -> {:ok, String.upcase(value)}
     error -> error
   end
 end
