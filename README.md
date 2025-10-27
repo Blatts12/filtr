@@ -571,9 +571,17 @@ You can always delegate to the DefaultPlugin from your custom plugins:
 
 ```elixir
 @impl true
-def validate(value, :string, validator, opts) do
+def validate(value, :upcase, validator, opts) do
   # Use default string validators
   Filtr.DefaultPlugin.Validate.validate(value, :string, validator, opts)
+end
+
+@impl true
+def cast(value, :upcase, opts) do
+  case Filtr.DefaultPlugin.Cast.cast(value, :string, opts) do
+    {:ok, value} -> String.upcase(value)
+    error -> error
+  end
 end
 ```
 
