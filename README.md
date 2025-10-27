@@ -584,5 +584,7 @@ end
 - [ ] Benchmarks
 - [ ] CI/CD
 - [ ] Improve README
+- [ ] Extarct errors function for strict mode
+- [ ] Custom error modes
 
 Distributed under the MIT License.
