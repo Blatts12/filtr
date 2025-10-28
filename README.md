@@ -587,6 +587,7 @@ end
 
 ## TODO
 
+- [ ] Logo
 - [ ] Docs in Code
 - [ ] More Tests
 - [ ] Benchmarks
