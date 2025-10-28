@@ -593,6 +593,6 @@ end
 - [ ] CI/CD
 - [ ] Improve README
 - [ ] Extarct errors function for strict mode
-- [ ] Custom error modes
+- [ ] Custom error modes (return 400 error on fail in controllers?)
 
 Distributed under the MIT License.
