@@ -594,5 +594,6 @@ end
 - [ ] Improve README
 - [ ] Extarct errors function for strict mode
 - [ ] Custom error modes (return 400 error on fail in controllers?)
+- [ ] Macro for nested schemas?
 
 Distributed under the MIT License.
