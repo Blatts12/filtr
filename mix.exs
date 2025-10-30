@@ -7,7 +7,7 @@ defmodule Filtr.MixProject do
   def project do
     [
       app: :filtr,
-      description: "Parameter validation library for Elixir with Phoenix integration",
+      description: "Parameter validation library for Elixir with Phoenix integration and attr-like macro",
       package: package(),
       docs: docs(),
       version: @version,
