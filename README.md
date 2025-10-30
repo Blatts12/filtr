@@ -600,4 +600,15 @@ end
 - [ ] Custom error modes (return 400 error on fail in controllers?)
 - [ ] Macro for nested schemas?
 
+Proposal for nested schema macro
+```elixir
+param :user do
+  param :uuid, :string
+end
+
+param :users, :list do
+  param :uuid, :string
+end
+```
+
 Distributed under the MIT License.
