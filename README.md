@@ -592,7 +592,10 @@ end
 - [ ] More Tests
 - [ ] Benchmarks
 - [ ] CI/CD
-- [ ] Improve README
+- [ ] Improve `README.md`
+- [ ] Introduce `AGENTS.md` file
+- [ ] `_valid?` field for strict mode to know if params are valid
+- [ ] Move on from `try catch` to different approach for plugin chaining
 - [ ] Extarct errors function for strict mode
 - [ ] Custom error modes (return 400 error on fail in controllers?)
 - [ ] Macro for nested schemas?
