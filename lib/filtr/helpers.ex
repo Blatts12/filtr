@@ -22,7 +22,7 @@ defmodule Filtr.Helpers do
   end
 
   defp build_type_plugin_map do
-    plugins = Application.get_env(:filtr, :plugins, [])
+    plugins = Application.get_env(:filtr, :plugins) || []
     all_plugins = [Filtr.DefaultPlugin | plugins]
 
     Enum.reduce(all_plugins, %{}, fn plugin, type_map ->

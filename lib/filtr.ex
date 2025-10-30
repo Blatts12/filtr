@@ -1,5 +1,7 @@
 defmodule Filtr do
-  @moduledoc false
+  @moduledoc """
+    Main file
+  """
 
   alias Filtr.Helpers
 
@@ -186,5 +188,91 @@ defmodule Filtr do
         end
       end
     )
+  end
+
+  @doc """
+  Collects all errors from a Filtr result map into a structured error map.
+
+  This function is primarily useful when using `:strict` error mode, where errors
+  are returned as `{:error, [...]}` tuples in the result map rather than being
+  replaced with default values (`:fallback`) or raising exceptions (`:raise`).
+
+  This function traverses the result map returned by `Filtr.run/2` or `Filtr.run/3` and extracts
+  all error tuples, organizing them into a hierarchical structure that mirrors the
+  original schema structure.
+  ## Examples
+
+      iex> result = %{name: {:error, "required"}, age: 25}
+      iex> Filtr.collect_errors(result)
+      %{name: ["required"]}
+
+
+      iex> result = %{name: "John", age: 25}
+      iex> Filtr.collect_errors(result)
+      nil
+
+      iex> result = %{
+      ...>   user: %{
+      ...>     name: {:error, "required"},
+      ...>     age: 25
+      ...>   }
+      ...> }
+      iex> Filtr.collect_errors(result)
+      %{user: %{name: ["required"]}}
+
+      iex> result = %{tags: ["valid", {:error, "too short"}, "another"]}
+      iex> Filtr.collect_errors(result)
+      %{tags: %{1 => ["too short"]}}
+
+      iex> result = %{
+      ...>   users: [
+      ...>     %{id: 1, name: "john"},
+      ...>     %{id: 2, name: {:error, "required"}}
+      ...>   ]
+      ...> }
+      iex> Filtr.collect_errors(result)
+      %{users: %{1 => %{name: ["required"]}}}
+
+  """
+  @spec collect_errors(filtr_result :: map()) :: map() | nil
+  def collect_errors(filtr_result) do
+    errors = do_collect_errors(filtr_result)
+    if errors == %{}, do: nil, else: errors
+  end
+
+  defp do_collect_errors(filtr_result) do
+    Enum.reduce(filtr_result, %{}, fn
+      {key, {:error, errors}}, acc ->
+        Map.put(acc, key, List.wrap(errors))
+
+      {key, value}, acc when is_map(value) ->
+        errors = do_collect_errors(value)
+        if errors == %{}, do: acc, else: Map.put(acc, key, errors)
+
+      {key, [value | _] = values}, acc when is_map(value) ->
+        errors =
+          values
+          |> Enum.with_index()
+          |> Enum.reduce(%{}, fn {value, index}, nested_acc ->
+            nested_errors = do_collect_errors(value)
+            if nested_errors == %{}, do: nested_acc, else: Map.put(nested_acc, index, nested_errors)
+          end)
+
+        if errors == %{}, do: acc, else: Map.put(acc, key, errors)
+
+      {key, values}, acc when is_list(values) ->
+        errors =
+          values
+          |> Enum.with_index()
+          |> Enum.reduce(%{}, fn
+            {{:error, error}, index}, nested_acc -> Map.put(nested_acc, index, List.wrap(error))
+            _, nested_acc -> nested_acc
+          end)
+
+        if errors == %{}, do: acc, else: Map.put(acc, key, errors)
+
+      _, acc ->
+        acc
+    end)
   end
 end
