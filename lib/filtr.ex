@@ -5,8 +5,6 @@ defmodule Filtr do
 
   alias Filtr.Helpers
 
-  require Logger
-
   @spec run(schema :: map(), params :: map()) :: map()
   @spec run(schema :: map(), params :: map(), opts :: keyword()) :: map()
   def run(schema, params, run_opts \\ []) do
