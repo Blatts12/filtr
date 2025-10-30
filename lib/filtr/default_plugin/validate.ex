@@ -1,5 +1,7 @@
 defmodule Filtr.DefaultPlugin.Validate do
-  @moduledoc false
+  @moduledoc """
+    Validate function used by `Filtr.DefaultPlugin`
+  """
 
   @spec validate(value :: any(), type :: atom(), validator :: {atom(), term()}, opts :: keyword()) ::
           Filtr.Plugin.validate_result()

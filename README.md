@@ -10,10 +10,12 @@ Filtr provides a flexible, plugin-based system for validating and casting parame
 - **Plugin System**
 - **Nested Schemas**
 - **Multiple Error Modes**
+- **Zero Dependencies**
+- **Phoenix Component's attr-like `param` macro**
 
 ## Requirements
 
-- Elixir ~> 1.13
+- Elixir ~> 1.16
 - Phoenix >= 1.6.0 (optional, for Controller/LiveView integration)
 - Phoenix LiveView >= 0.20.0 (optional, for LiveView integration)
 

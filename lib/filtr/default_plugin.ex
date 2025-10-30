@@ -1,5 +1,7 @@
 defmodule Filtr.DefaultPlugin do
-  @moduledoc false
+  @moduledoc """
+    Default plugin
+  """
 
   use Filtr.Plugin
 

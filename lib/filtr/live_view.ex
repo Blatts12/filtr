@@ -1,5 +1,7 @@
 defmodule Filtr.LiveView do
-  @moduledoc false
+  @moduledoc """
+    Provides Phoenix LiveView integration with attr-style parameter definitions.
+  """
 
   @valid_error_modes [:strict, :fallback, :raise]
 

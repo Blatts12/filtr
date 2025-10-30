@@ -1,5 +1,7 @@
 defmodule Filtr.Helpers do
-  @moduledoc false
+  @moduledoc """
+    Helper functions
+  """
 
   @type_plugin_map_key :filtr_type_plugin_map
 

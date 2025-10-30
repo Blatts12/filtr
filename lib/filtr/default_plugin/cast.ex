@@ -1,5 +1,7 @@
 defmodule Filtr.DefaultPlugin.Cast do
-  @moduledoc false
+  @moduledoc """
+    Cast function used by `Filtr.DefaultPlugin`
+  """
 
   @spec cast(value :: any(), type :: atom(), opts :: keyword()) :: Filtr.Plugin.cast_result()
 

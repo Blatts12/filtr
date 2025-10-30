@@ -1,5 +1,7 @@
 defmodule Filtr.Plugin do
-  @moduledoc false
+  @moduledoc """
+    Plugin behaviour
+  """
 
   @type cast_result :: {:ok, any()} | {:error, binary() | [binary()]}
   @type validate_result ::
