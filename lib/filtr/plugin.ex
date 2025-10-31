@@ -18,11 +18,23 @@ defmodule Filtr.Plugin do
   defmacro __using__(_opts) do
     quote do
       @behaviour Filtr.Plugin
+      @before_compile Filtr.Plugin
 
       @impl Filtr.Plugin
       def types, do: []
 
       defoverridable types: 0
+    end
+  end
+
+  defmacro __before_compile__(_env) do
+    quote do
+      # Catch-all clause for cast/3 - returns :not_handled if no pattern matches
+      # This allows plugins to only implement the specific patterns they support
+      def cast(_value, _type, _opts), do: :not_handled
+
+      # Catch-all clause for validate/4 - returns :not_handled if no pattern matches
+      def validate(_value, _type, _validator, _opts), do: :not_handled
     end
   end
 

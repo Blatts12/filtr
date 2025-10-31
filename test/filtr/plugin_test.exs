@@ -40,7 +40,7 @@ defmodule Filtr.PluginTest do
 
         @impl true
         def validate(value, :uppercase, validator, opts) do
-          Filtr.DefaultPlugin.Validate.validate(value, :string, validator, opts)
+          Filtr.DefaultPlugin.validate(value, :string, validator, opts)
         end
       end
 
@@ -57,7 +57,7 @@ defmodule Filtr.PluginTest do
 
         @impl true
         def cast(value, :even_number, opts) do
-          Filtr.DefaultPlugin.Cast.cast(value, :integer, opts)
+          Filtr.DefaultPlugin.cast(value, :integer, opts)
         end
 
         @impl true

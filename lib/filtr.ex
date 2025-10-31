@@ -164,12 +164,9 @@ defmodule Filtr do
 
   defp plugin_cast(plugins, value, type, opts) do
     Enum.reduce_while(plugins, {:error, "missing cast for #{type}"}, fn plugin, result ->
-      try do
-        plugin.cast(value, type, opts)
-      catch
-        FunctionClauseError -> {:cont, result}
-      else
-        result -> {:halt, result}
+      case plugin.cast(value, type, opts) do
+        :not_handled -> {:cont, result}
+        cast_result -> {:halt, cast_result}
       end
     end)
   end
@@ -179,12 +176,9 @@ defmodule Filtr do
       plugins,
       {:error, "missing validate for #{type}, #{inspect(validator)}"},
       fn plugin, result ->
-        try do
-          plugin.validate(value, type, validator, opts)
-        catch
-          FunctionClauseError -> {:cont, result}
-        else
-          result -> {:halt, result}
+        case plugin.validate(value, type, validator, opts) do
+          :not_handled -> {:cont, result}
+          validate_result -> {:halt, validate_result}
         end
       end
     )

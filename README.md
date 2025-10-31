@@ -403,7 +403,9 @@ end
 - `{:error, error_message}` - Single error message
 - `{:error, [error1, error2, ...]}` - Multiple error messages
 
-If your plugin doesn't implement `cast/3` for a specific type or the function clause doesn't match, Filtr will try the next plugin in the chain.
+**Automatic fallthrough:**
+
+When you use `Filtr.Plugin`, a catch-all clause is automatically added to your plugin at compile time using `@before_compile`. This means you **don't need to manually add catch-all clauses** - if your function pattern doesn't match, Filtr automatically returns `:not_handled` and tries the next plugin in the chain.
 
 #### `validate/4`
 
@@ -435,7 +437,9 @@ end
 - `:error` or `false` - Validation failed (returns generic "invalid value" error)
 - `{:error, error_message}` - Validation failed with specific message
 
-The validator parameter is a tuple like `{:min, 100}` or `{:in, ["USD", "EUR"]}`. Your plugin only needs to implement validators it supports - if a validator isn't recognized, Filtr will try the next plugin in the chain.
+**Automatic fallthrough:**
+
+The validator parameter is a tuple like `{:min, 100}` or `{:in, ["USD", "EUR"]}`. Your plugin only needs to implement validators it supports - if a validator isn't recognized, the automatic catch-all clause returns `:not_handled` and Filtr tries the next plugin in the chain.
 
 ### Plugin Priority
 
@@ -465,7 +469,7 @@ defmodule MyApp.CustomStringPlugin do
   @impl true
   def validate(value, :string, validator, opts) do
     # Delegate to default string validators
-    Filtr.DefaultPlugin.Validate.validate(value, :string, validator, opts)
+    Filtr.DefaultPlugin.validate(value, :string, validator, opts)
   end
 end
 ```
@@ -489,6 +493,8 @@ config :filtr, plugins: [PluginA, PluginB, PluginC]
 
 **How fallthrough works:**
 
+When you `use Filtr.Plugin`, a `@before_compile` hook automatically adds catch-all clauses to your plugin that return `:not_handled` for any unmatched function patterns. This means you only need to implement the specific cases you care about:
+
 ```elixir
 defmodule MyPlugin do
   use Filtr.Plugin
@@ -500,12 +506,16 @@ defmodule MyPlugin do
   def cast(value, :string, _opts) when is_binary(value) do
     {:ok, String.trim(value)}
   end
+  # No need to add: def cast(_value, _type, _opts), do: :not_handled
+  # This is automatically added by @before_compile!
 
   @impl true
   # Only implement :min validator, others fall through
   def validate(value, :string, {:min, min}, _opts) do
     if String.length(value) >= min, do: :ok, else: {:error, "too short"}
   end
+  # No need to add: def validate(_value, _type, _validator, _opts), do: :not_handled
+  # This is automatically added by @before_compile!
 end
 
 # When using :max validator, it falls through to DefaultPlugin
@@ -575,12 +585,12 @@ You can always delegate to the DefaultPlugin from your custom plugins:
 @impl true
 def validate(value, :upcase, validator, opts) do
   # Use default string validators
-  Filtr.DefaultPlugin.Validate.validate(value, :string, validator, opts)
+  Filtr.DefaultPlugin.validate(value, :string, validator, opts)
 end
 
 @impl true
 def cast(value, :upcase, opts) do
-  case Filtr.DefaultPlugin.Cast.cast(value, :string, opts) do
+  case Filtr.DefaultPlugin.cast(value, :string, opts) do
     {:ok, value} -> {:ok, String.upcase(value)}
     error -> error
   end
@@ -597,8 +607,8 @@ end
 - [ ] Improve `README.md`
 - [ ] Introduce `AGENTS.md` file
 - [ ] `_valid?` field for strict mode to know if params are valid
-- [ ] Move on from `try catch` to different approach for plugin chaining
-- [ ] Extarct errors function for strict mode
+- [x] Move on from `try catch` to different approach for plugin chaining
+- [x] Extarct errors function for strict mode
 - [ ] Custom error modes (return 400 error on fail in controllers?)
 - [ ] Macro for nested schemas?
 
