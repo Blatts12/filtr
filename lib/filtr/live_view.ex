@@ -9,7 +9,7 @@ defmodule Filtr.LiveView do
     error_mode = Keyword.get(opts, :error_mode, :fallback)
 
     if !(error_mode in @valid_error_modes or is_function(error_mode)) do
-      raise ArgumentError, "error_mode must be one of: #{inspect(@valid_error_modes)} or a function"
+      raise ArgumentError, "error_mode must be one of: #{inspect(@valid_error_modes)}"
     end
 
     quote do
