@@ -37,7 +37,7 @@ defmodule Filtr.Controller do
   defmacro __using__(opts \\ []) do
     error_mode = Keyword.get(opts, :error_mode, :fallback)
 
-    if !(error_mode in @valid_error_modes or is_function(error_mode)) do
+    if error_mode not in @valid_error_modes do
       raise ArgumentError, "error_mode must be one of: #{inspect(@valid_error_modes)}"
     end
 
