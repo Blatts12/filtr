@@ -2,6 +2,7 @@ defmodule Filtr.LiveView do
   @moduledoc """
     Provides Phoenix LiveView integration with attr-style parameter definitions.
   """
+  alias Filtr.Helpers
 
   @valid_error_modes [:strict, :fallback, :raise]
 
@@ -13,7 +14,7 @@ defmodule Filtr.LiveView do
     end
 
     quote do
-      import Filtr.LiveView, only: [param: 2, param: 3, param: 4]
+      import Filtr.LiveView, only: [param: 2, param: 3]
 
       alias Phoenix.LiveView.Socket
 
@@ -39,9 +40,9 @@ defmodule Filtr.LiveView do
       param :email, :string, required: true, pattern: ~r/@/
       param :tags, {:list, :string}, default: []
   """
-  defmacro param(name, type, validators \\ [], opts \\ []) do
+  defmacro param(name, type, opts \\ []) do
     quote do
-      @filtr_params {unquote(name), [type: unquote(type), validators: unquote(validators)] ++ unquote(opts)}
+      @filtr_params {unquote(name), Keyword.put(unquote(opts), :type, unquote(type))}
     end
   end
 
@@ -54,7 +55,10 @@ defmodule Filtr.LiveView do
         def do_filtr_param_on_mount(socket, _params), do: socket
       end
     else
-      filtr_schema = Map.new(filtr_params)
+      filtr_schema =
+        Map.new(filtr_params, fn {key, opts} ->
+          {key, Helpers.parse_param_opts(opts)}
+        end)
 
       quote do
         defp do_filtr_param_on_mount(socket, params) do

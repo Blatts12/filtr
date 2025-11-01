@@ -30,6 +30,7 @@ defmodule Filtr.Controller do
         end
       end
   """
+  alias Filtr.Helpers
 
   @valid_error_modes [:strict, :fallback, :raise]
 
@@ -41,7 +42,7 @@ defmodule Filtr.Controller do
     end
 
     quote do
-      import Filtr.Controller, only: [param: 2, param: 3, param: 4]
+      import Filtr.Controller, only: [param: 2, param: 3]
 
       Module.register_attribute(__MODULE__, :filtr_param_definitions, accumulate: true)
       Module.register_attribute(__MODULE__, :filtr_function_params, accumulate: true)
@@ -61,9 +62,9 @@ defmodule Filtr.Controller do
       param :email, :string, required: true, pattern: ~r/@/
       param :tags, {:list, :string}, default: []
   """
-  defmacro param(name, type, validators \\ [], opts \\ []) do
+  defmacro param(name, type, opts \\ []) do
     quote do
-      @filtr_param_definitions {unquote(name), [type: unquote(type), validators: unquote(validators)] ++ unquote(opts)}
+      @filtr_param_definitions {unquote(name), Keyword.put(unquote(opts), :type, unquote(type))}
     end
   end
 
@@ -73,7 +74,11 @@ defmodule Filtr.Controller do
       param_definitions = Module.get_attribute(env.module, :filtr_param_definitions, [])
 
       if not Enum.empty?(param_definitions) do
-        schema = Map.new(param_definitions)
+        schema =
+          Map.new(param_definitions, fn {key, opts} ->
+            {key, Helpers.parse_param_opts(opts)}
+          end)
+
         Module.put_attribute(env.module, :filtr_function_params, {name, schema})
 
         Module.delete_attribute(env.module, :filtr_param_definitions)

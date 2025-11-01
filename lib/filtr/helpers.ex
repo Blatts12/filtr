@@ -35,4 +35,15 @@ defmodule Filtr.Helpers do
       end)
     end)
   end
+
+  @run_opts_keys [:error_mode]
+
+  @spec parse_param_opts(keyword()) :: keyword()
+  def parse_param_opts(opts) do
+    validators = Keyword.drop(opts, [:type] ++ @run_opts_keys)
+
+    opts
+    |> Keyword.take([:type] ++ @run_opts_keys)
+    |> Keyword.put(:validators, validators)
+  end
 end

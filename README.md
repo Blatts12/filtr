@@ -290,7 +290,7 @@ defmodule MyAppWeb.UserController do
   use Filtr.Controller, error_mode: :strict
 
   # Override for specific param - won't raise, will use fallback
-  param :optional_field, :string, [default: ""], error_mode: :fallback
+  param :optional_field, :string, default: "", error_mode: :fallback
   param :required_field, :string, required: true  # Uses :strict from module
 
   def create(conn, params) do

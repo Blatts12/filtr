@@ -51,6 +51,16 @@ defmodule Filtr.ControllerTest do
     end
   end
 
+  defmodule FieldErrorModeController do
+    use Filtr.Controller, error_mode: :raise
+
+    param :name, :string, required: true, error_mode: :fallback
+
+    def create(conn, params) do
+      {conn, params}
+    end
+  end
+
   describe "macro" do
     test "controller functions are defined" do
       assert function_exported?(TestController, :create, 2)
@@ -166,6 +176,15 @@ defmodule Filtr.ControllerTest do
       assert_raise RuntimeError, "Invalid value for name: required", fn ->
         RaiseModeController.create(conn, params)
       end
+    end
+  end
+
+  describe "error mode per field" do
+    test "doesn't raise with missing parameters" do
+      conn = %{}
+
+      {^conn, validated_params} = FieldErrorModeController.create(conn, %{})
+      assert is_nil(validated_params.name)
     end
   end
 
