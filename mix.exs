@@ -2,7 +2,7 @@ defmodule Filtr.MixProject do
   use Mix.Project
 
   @source "https://github.com/Blatts12/filtr"
-  @version "0.1.7"
+  @version "0.2.0"
 
   def project do
     [
