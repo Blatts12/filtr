@@ -6,3 +6,9 @@ ci:
 
 test:
     mix test
+
+publish:
+    mix hex.publish
+
+docs:
+    mix docs --open
