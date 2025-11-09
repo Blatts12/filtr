@@ -8,37 +8,51 @@ defmodule Filtr do
   @spec run(schema :: map(), params :: map()) :: map()
   @spec run(schema :: map(), params :: map(), opts :: keyword()) :: map()
   def run(schema, params, run_opts \\ []) do
-    Map.new(schema, fn
-      {key, nested_schema} when is_map(nested_schema) ->
-        values = get_value(params, key)
-        {key, run(nested_schema, values, run_opts)}
+    {result, valid?} =
+      Enum.reduce(schema, {%{}, true}, fn
+        {key, nested_schema}, {acc, acc_valid?} when is_map(nested_schema) ->
+          values = get_value(params, key)
+          nested_result = run(nested_schema, values, run_opts)
+          nested_valid? = Map.get(nested_result, :_valid?, true)
 
-      {key, opts} ->
-        opts = Keyword.merge(run_opts, opts)
-        {type, opts} = Keyword.pop!(opts, :type)
+          {Map.put(acc, key, nested_result), acc_valid? and nested_valid?}
 
-        case type do
-          {:list, nested_schema} when is_map(nested_schema) ->
-            values = get_value(params, key)
-            {key, run(nested_schema, values, run_opts)}
+        {key, opts}, {acc, acc_valid?} ->
+          opts = Keyword.merge(run_opts, opts)
+          {type, opts} = Keyword.pop!(opts, :type)
 
-          {:list, type} ->
-            values =
-              params
-              |> get_value(key)
-              |> Enum.map(fn value ->
-                key
-                |> process_value(value, type, opts)
-                |> elem(1)
-              end)
+          case type do
+            {:list, nested_schema} when is_map(nested_schema) ->
+              values = get_value(params, key)
+              nested_result = run(nested_schema, values, run_opts)
+              nested_valid? = Map.get(nested_result, :_valid?, true)
 
-            {key, values}
+              {Map.put(acc, key, nested_result), acc_valid? and nested_valid?}
 
-          type ->
-            value = get_value(params, key)
-            process_value(key, value, type, opts)
-        end
-    end)
+            {:list, type} ->
+              values =
+                params
+                |> get_value(key)
+                |> Enum.map(fn value ->
+                  key
+                  |> process_value(value, type, opts)
+                  |> elem(1)
+                end)
+
+              list_valid? = not Enum.any?(values, &match?({:error, _}, &1))
+
+              {Map.put(acc, key, values), acc_valid? and list_valid?}
+
+            type ->
+              value = get_value(params, key)
+              {_key, processed_value} = process_value(key, value, type, opts)
+              value_valid? = not match?({:error, _}, processed_value)
+
+              {Map.put(acc, key, processed_value), acc_valid? and value_valid?}
+          end
+      end)
+
+    Map.put(result, :_valid?, valid?)
   end
 
   defp process_value(key, value, type, opts) do

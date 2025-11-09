@@ -692,6 +692,100 @@ defmodule FiltrTest do
     end
   end
 
+  describe "_valid? field" do
+    test "sets _valid? to true when all params are valid" do
+      schema = %{
+        name: [type: :string, validators: [required: true]],
+        age: [type: :integer, validators: [min: 18]]
+      }
+
+      params = %{"name" => "John", "age" => "25"}
+
+      result = Filtr.run(schema, params, error_mode: :strict)
+      assert result._valid? == true
+      assert result.name == "John"
+      assert result.age == 25
+    end
+
+    test "sets _valid? to false when params have errors" do
+      schema = %{
+        name: [type: :string, validators: [required: true]],
+        age: [type: :integer, validators: [min: 18]]
+      }
+
+      params = %{"age" => "10"}
+
+      result = Filtr.run(schema, params, error_mode: :strict)
+      assert result._valid? == false
+      assert {:error, ["required"]} = result.name
+      assert {:error, _} = result.age
+    end
+
+    test "sets _valid? to false when nested params have errors" do
+      schema = %{
+        user: %{
+          name: [type: :string, validators: [required: true]],
+          email: [type: :string, validators: [required: true]]
+        }
+      }
+
+      params = %{"user" => %{"name" => "John"}}
+
+      result = Filtr.run(schema, params, error_mode: :strict)
+      assert result._valid? == false
+      assert result.user.name == "John"
+      assert {:error, ["required"]} = result.user.email
+    end
+
+    test "sets _valid? to false when list items have errors" do
+      schema = %{
+        tags: [type: {:list, :string}, validators: [min: 3]]
+      }
+
+      params = %{"tags" => ["valid", "no"]}
+
+      result = Filtr.run(schema, params, error_mode: :strict)
+      assert result._valid? == false
+      assert ["valid", {:error, _}] = result.tags
+    end
+
+    test "sets _valid? to true in fallback mode" do
+      schema = %{
+        name: [type: :string, validators: [required: true]]
+      }
+
+      params = %{}
+
+      result = Filtr.run(schema, params, error_mode: :fallback)
+      assert result._valid? == true
+    end
+
+    test "sets _valid? to true in raise mode" do
+      schema = %{
+        name: [type: :string]
+      }
+
+      params = %{"name" => "John"}
+
+      result = Filtr.run(schema, params, error_mode: :raise)
+      assert result._valid? == true
+    end
+
+    test "_valid? works with mixed field error modes" do
+      schema = %{
+        strict_field: [type: :string, validators: [required: true], error_mode: :strict],
+        fallback_field: [type: :string, validators: [default: "default"], error_mode: :fallback]
+      }
+
+      params = %{}
+
+      result = Filtr.run(schema, params, error_mode: :strict)
+      assert result._valid? == false
+      assert {:error, ["required"]} = result.strict_field
+      assert result.fallback_field == "default"
+    end
+  end
+
   describe "collect_errors/1" do
     test "returns nil for filtr result without errors" do
       filtr_result = %{

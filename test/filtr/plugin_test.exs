@@ -1,6 +1,8 @@
 defmodule Filtr.PluginTest do
   use ExUnit.Case, async: false
 
+  # credo:disable-for-this-file Credo.Check.Design.AliasUsage
+
   alias Filtr.Plugin
 
   describe "__using__ macro" do

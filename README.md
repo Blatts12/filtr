@@ -171,6 +171,51 @@ use Filtr.Controller, error_mode: :strict
 use Filtr.LiveView, error_mode: :raise
 ```
 
+## Validation Status
+
+Filtr automatically includes a `_valid?` field in the result map to indicate whether all parameters passed validation. This field is always present regardless of error mode.
+
+```elixir
+schema = %{
+  name: [type: :string, validators: [required: true]],
+  age: [type: :integer, validators: [min: 18]]
+}
+
+# Valid params
+params = %{"name" => "John", "age" => "25"}
+result = Filtr.run(schema, params, error_mode: :strict)
+# %{name: "John", age: 25, _valid?: true}
+
+# Invalid params
+params = %{"age" => "10"}
+result = Filtr.run(schema, params, error_mode: :strict)
+# %{name: {:error, ["required"]}, age: {:error, [...]}, _valid?: false}
+```
+
+This makes it easy to check validation status without inspecting individual fields:
+
+```elixir
+defmodule MyAppWeb.UserController do
+  use Filtr.Controller, error_mode: :strict
+
+  param :name, :string, required: true
+  param :email, :string, required: true, pattern: ~r/@/
+
+  def create(conn, params) do
+    if params._valid? do
+      # All params are valid, proceed with creation
+      json(conn, %{message: "User #{params.name} created"})
+    else
+      # Some params have errors, collect and return them
+      errors = Filtr.collect_errors(params)
+      conn
+      |> put_status(:bad_request)
+      |> json(%{errors: errors})
+    end
+  end
+end
+```
+
 ## Advanced Features
 
 ### Nested Schemas
@@ -606,9 +651,9 @@ end
 - [ ] CI/CD
 - [ ] Improve `README.md`
 - [ ] Introduce `AGENTS.md` file
-- [ ] `_valid?` field for strict mode to know if params are valid
+- [x] `_valid?` field for strict mode to know if params are valid
 - [x] Move on from `try catch` to different approach for plugin chaining
-- [x] Extarct errors function for strict mode
+- [x] Extract errors function for strict mode
 - [ ] Custom error modes (return 400 error on fail in controllers?)
 - [ ] Macro for nested schemas?
 

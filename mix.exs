@@ -2,12 +2,12 @@ defmodule Filtr.MixProject do
   use Mix.Project
 
   @source "https://github.com/Blatts12/filtr"
-  @version "0.2.0"
+  @version "0.2.1"
 
   def project do
     [
       app: :filtr,
-      description: "Parameter validation library for Elixir with Phoenix integration and attr-like macro",
+      description: "Query param validation library for Elixir with Phoenix integration and attr-like macro",
       package: package(),
       docs: docs(),
       version: @version,
