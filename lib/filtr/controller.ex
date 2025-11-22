@@ -30,6 +30,7 @@ defmodule Filtr.Controller do
         end
       end
   """
+
   alias Filtr.Helpers
 
   @valid_error_modes [:strict, :fallback, :raise]
@@ -52,6 +53,14 @@ defmodule Filtr.Controller do
     end
   end
 
+  defmacro param(name, do: nested_block) do
+    nested_schema = Helpers.render_ast_to_schema(nested_block)
+
+    quote do
+      @filtr_param_definitions {unquote(name), unquote(Macro.escape(nested_schema))}
+    end
+  end
+
   @doc """
   Defines a parameter with its type and validation options for the next controller function.
 
@@ -62,7 +71,7 @@ defmodule Filtr.Controller do
       param :email, :string, required: true, pattern: ~r/@/
       param :tags, {:list, :string}, default: []
   """
-  defmacro param(name, type, opts \\ []) do
+  defmacro param(name, type, opts \\ []) when is_list(opts) do
     quote do
       @filtr_param_definitions {unquote(name), Keyword.put(unquote(opts), :type, unquote(type))}
     end
@@ -75,8 +84,15 @@ defmodule Filtr.Controller do
 
       if not Enum.empty?(param_definitions) do
         schema =
-          Map.new(param_definitions, fn {key, opts} ->
-            {key, Helpers.parse_param_opts(opts)}
+          Map.new(param_definitions, fn {key, opts_or_schema} ->
+            {
+              key,
+              # If opts_or_schema is a map, it's a nested schema
+              if(is_map(opts_or_schema),
+                do: opts_or_schema,
+                else: Helpers.parse_param_opts(opts_or_schema)
+              )
+            }
           end)
 
         Module.put_attribute(env.module, :filtr_function_params, {name, schema})

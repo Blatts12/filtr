@@ -7,12 +7,12 @@ Filtr provides a flexible, plugin-based system for validating and casting parame
 
 ## Features
 
-- **Phoenix Integration**
-- **Plugin System**
-- **Nested Schemas**
-- **Multiple Error Modes**
-- **Zero Dependencies**
-- **Phoenix Component's attr-like `param` macro**
+- **Phoenix Integration** - Seamless Controller and LiveView support
+- **Plugin System** - Extend with custom types and validators
+- **Multiple Error Modes** - Fallback, strict, and raise modes with per-field overrides
+- **Zero Dependencies** - Lightweight core library
+- **attr-like `param` macro** - Familiar, declarative syntax just like for Phoenix Components
+- **Nested Schemas** - Deep nesting with `param do...end` macro syntax
 
 ## Requirements
 
@@ -60,15 +60,16 @@ defmodule MyAppWeb.UserController do
     json(conn, %{message: "User #{params.name} created"})
   end
 
-  param :q, :string, default: ""
-  param :page, :integer, default: 1, min: 1
-  param :category, :string, in: ["books", "movies", "music"], default: "books"
+  # Nested parameters
+  param :filters do
+    param :q, :string, default: ""
+    param :page, :integer, default: 1, min: 1
+    param :category, :string, in: ["books", "movies", "music"], default: "books"
+  end
 
   def search(conn, params) do
-    # params.q defaults to ""
-    # params.page defaults to 1 and is >= 1
-    # params.category is one of the allowed values
-    json(conn, %{query: params.q, page: params.page})
+    # Access nested params with dot notation
+    json(conn, %{query: params.filters.q, page: params.filters.page})
   end
 end
 ```
@@ -80,13 +81,22 @@ defmodule MyAppWeb.SearchLive do
   use MyAppWeb, :live_view
   use Filtr.LiveView, error_mode: :raise
 
-  param :query, :string, required: true, min: 1
-  param :limit, :integer, default: 10, min: 1, max: 100
+  # Nested parameters for better organization
+  param :search do
+    param :query, :string, required: true, min: 1
+    param :limit, :integer, default: 10, min: 1, max: 100
+  end
+
+  param :filters do
+    param :category, :string, default: "all"
+    param :sort, :string, in: ["name", "date"], default: "name"
+  end
 
   def mount(_params, _session, socket) do
     # socket.assigns.filtr contains validated params
-    # socket.assigns.filtr.query - validated query string
-    # socket.assigns.filtr.limit - validated limit (defaults to 10)
+    # socket.assigns.filtr.search.query - validated query string
+    # socket.assigns.filtr.search.limit - validated limit (defaults to 10)
+    # socket.assigns.filtr.filters.category - validated category
     {:ok, socket}
   end
 
@@ -220,6 +230,59 @@ end
 ## Advanced Features
 
 ### Nested Schemas
+
+Filtr supports nested schemas with two syntaxes:
+
+#### Macro Syntax (Controllers & LiveViews)
+
+Use the `param do...end` syntax for clean, declarative nested schemas:
+
+```elixir
+defmodule MyAppWeb.UserController do
+  use Filtr.Controller
+
+  param :user do
+    param :name, :string, required: true
+    param :email, :string, required: true, pattern: ~r/@/
+    param :age, :integer, min: 18
+  end
+
+  param :settings do
+    param :theme, :string, in: ["light", "dark"], default: "light"
+    param :notifications, :boolean, default: true
+  end
+
+  def create(conn, params) do
+    # params.user.name
+    # params.user.email
+    # params.settings.theme
+    json(conn, %{message: "User #{params.user.name} created"})
+  end
+end
+```
+
+**Deep nesting** is fully supported:
+
+```elixir
+param :company do
+  param :name, :string, required: true
+
+  param :headquarters do
+    param :country, :string, default: "US"
+
+    param :contact do
+      param :email, :string, required: true
+      param :phone, :string, default: ""
+    end
+  end
+end
+
+# Access: params.company.headquarters.contact.email
+```
+
+#### Map Syntax (Standalone)
+
+For standalone usage, use the map syntax:
 
 ```elixir
 schema = %{
@@ -656,17 +719,6 @@ end
 - [x] Move on from `try catch` to different approach for plugin chaining
 - [x] Extract errors function for strict mode
 - [ ] Custom error modes (return 400 error on fail in controllers?)
-- [ ] Macro for nested schemas?
-
-Proposal for nested schema macro
-```elixir
-param :user do
-  param :uuid, :string
-end
-
-param :users, :list do
-  param :uuid, :string
-end
-```
+- [x] Macro for nested schemas
 
 Distributed under the MIT License.

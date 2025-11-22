@@ -14,6 +14,7 @@ defmodule Filtr do
           values = get_value(params, key)
           nested_result = run(nested_schema, values, run_opts)
           nested_valid? = Map.get(nested_result, :_valid?, true)
+          nested_result = Map.delete(nested_result, :_valid?)
 
           {Map.put(acc, key, nested_result), acc_valid? and nested_valid?}
 
@@ -26,6 +27,7 @@ defmodule Filtr do
               values = get_value(params, key)
               nested_result = run(nested_schema, values, run_opts)
               nested_valid? = Map.get(nested_result, :_valid?, true)
+              nested_result = Map.delete(nested_result, :_valid?)
 
               {Map.put(acc, key, nested_result), acc_valid? and nested_valid?}
 
@@ -171,6 +173,7 @@ defmodule Filtr do
   end
 
   defp get_value(params, key) do
+    params = params || %{}
     Map.get(params, to_string(key)) || Map.get(params, key)
   end
 

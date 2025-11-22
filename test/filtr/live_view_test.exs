@@ -103,6 +103,141 @@ defmodule Filtr.LiveViewTest do
     end
   end
 
+  describe "nested schema" do
+    setup [:init_session]
+
+    test "validates nested parameters", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, "/nested?user[name]=John&user[age]=25")
+      filtr = get_assigns(lv).filtr
+
+      assert filtr.user.name == "John"
+      assert filtr.user.age == 25
+    end
+
+    test "applies defaults to nested parameters", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, "/nested?user[name]=John")
+      filtr = get_assigns(lv).filtr
+
+      assert filtr.user.name == "John"
+      assert Map.has_key?(filtr.user, :age)
+    end
+
+    test "handles missing nested object with fallback", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, "/nested")
+      filtr = get_assigns(lv).filtr
+
+      # In fallback mode, missing nested params should get a map
+      assert is_nil(filtr.user.name)
+      assert is_nil(filtr.user.age)
+    end
+
+    test "validates constraints on nested parameters", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, "/nested?user[name]=John&user[age]=16")
+      filtr = get_assigns(lv).filtr
+
+      assert filtr.user.name == "John"
+      assert Map.has_key?(filtr.user, :age)
+    end
+  end
+
+  describe "mixed flat and nested schema" do
+    setup [:init_session]
+
+    test "validates both flat and nested parameters", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, "/mixed?name=John&settings[theme]=dark&settings[notifications]=false")
+      filtr = get_assigns(lv).filtr
+
+      assert filtr.name == "John"
+      assert filtr.settings.theme == "dark"
+      assert filtr.settings.notifications == false
+    end
+
+    test "applies defaults to nested while validating flat", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, "/mixed?name=John")
+      filtr = get_assigns(lv).filtr
+
+      assert filtr.name == "John"
+      assert filtr.settings.theme == "light"
+      assert filtr.settings.notifications == true
+    end
+
+    test "handles missing nested object in mixed schema", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, "/mixed?name=John")
+      filtr = get_assigns(lv).filtr
+
+      assert filtr.name == "John"
+      assert is_map(filtr.settings)
+      assert filtr.settings.theme == "light"
+    end
+  end
+
+  describe "double nested schema" do
+    setup [:init_session]
+
+    test "validates triple nested parameters", %{conn: conn} do
+      {:ok, lv, _html} =
+        live(
+          conn,
+          "/double_nested?company[name]=Acme&company[headquarters][country]=UK&company[headquarters][contact][email]=info@acme.com&company[headquarters][contact][phone]=44-123-456"
+        )
+
+      filtr = get_assigns(lv).filtr
+
+      assert filtr.company.name == "Acme"
+      assert filtr.company.headquarters.country == "UK"
+      assert filtr.company.headquarters.contact.email == "info@acme.com"
+      assert filtr.company.headquarters.contact.phone == "44-123-456"
+    end
+
+    test "applies defaults to triple nested parameters", %{conn: conn} do
+      {:ok, lv, _html} =
+        live(
+          conn,
+          "/double_nested?company[name]=Acme&company[headquarters][contact][email]=info@acme.com"
+        )
+
+      filtr = get_assigns(lv).filtr
+
+      assert filtr.company.name == "Acme"
+      assert filtr.company.headquarters.country == "US"
+      assert filtr.company.headquarters.contact.email == "info@acme.com"
+      assert filtr.company.headquarters.contact.phone == ""
+    end
+
+    test "handles missing double nested object with fallback", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, "/double_nested?company[name]=Acme")
+      filtr = get_assigns(lv).filtr
+
+      assert filtr.company.name == "Acme"
+      assert is_map(filtr.company.headquarters)
+    end
+  end
+
+  describe "empty nested schema" do
+    setup [:init_session]
+
+    test "nothing happens when provided with empty user in params", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, "/empty_nested?user=")
+      filtr = get_assigns(lv).filtr
+
+      assert filtr.user == %{}
+    end
+
+    test "nothing happens when provided with user in params", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, "/empty_nested?user[name]=John")
+      filtr = get_assigns(lv).filtr
+
+      assert filtr.user == %{}
+    end
+
+    test "nothing happens when provided with empty params", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, "/empty_nested")
+      filtr = get_assigns(lv).filtr
+
+      assert filtr.user == %{}
+    end
+  end
+
   describe "renders module" do
     test "creates module without params" do
       module =
@@ -134,6 +269,20 @@ defmodule Filtr.LiveViewTest do
           @moduledoc false
           use Phoenix.LiveView, namespace: Filtr
           use Filtr.LiveView, error_mode: :invalid
+        end
+      end
+    end
+
+    test "raises when provided with nested schema" do
+      assert_raise ArgumentError, fn ->
+        defmodule TestInvalidErrorMode do
+          @moduledoc false
+          use Phoenix.LiveView, namespace: Filtr
+          use Filtr.LiveView
+
+          param :user do
+            IO.inspect("Hello World")
+          end
         end
       end
     end

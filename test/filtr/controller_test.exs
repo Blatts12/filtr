@@ -61,6 +61,91 @@ defmodule Filtr.ControllerTest do
     end
   end
 
+  defmodule NestedSchemaController do
+    use Filtr.Controller
+
+    param :user do
+      param :name, :string, required: true
+      param :age, :integer, min: 18
+    end
+
+    def create(conn, params) do
+      {conn, params}
+    end
+
+    param :filter do
+      param :category, :string, in: ["books", "movies"], default: "books"
+      param :sort, :string, default: "name"
+    end
+
+    def search(conn, params) do
+      {conn, params}
+    end
+  end
+
+  defmodule MixedSchemaController do
+    use Filtr.Controller
+
+    param :name, :string, required: true
+
+    param :settings do
+      param :theme, :string, default: "light"
+      param :notifications, :boolean, default: true
+    end
+
+    def update(conn, params) do
+      {conn, params}
+    end
+  end
+
+  defmodule DoubleNestedSchemaController do
+    use Filtr.Controller
+
+    param :user do
+      param :name, :string, required: true
+
+      param :address do
+        param :street, :string, default: ""
+        param :city, :string, required: true
+        param :postal_code, :string, default: ""
+      end
+    end
+
+    def create(conn, params) do
+      {conn, params}
+    end
+
+    param :company do
+      param :name, :string, required: true
+
+      param :headquarters do
+        param :country, :string, default: "US"
+
+        param :contact do
+          param :email, :string, required: true
+          param :phone, :string, default: ""
+        end
+      end
+    end
+
+    def register(conn, params) do
+      {conn, params}
+    end
+  end
+
+  defmodule EmptyNestedSchemaController do
+    use Filtr.Controller
+
+    param :name, :string, required: true
+
+    param :user do
+    end
+
+    def create(conn, params) do
+      {conn, params}
+    end
+  end
+
   describe "macro" do
     test "controller functions are defined" do
       assert function_exported?(TestController, :create, 2)
@@ -188,6 +273,251 @@ defmodule Filtr.ControllerTest do
     end
   end
 
+  describe "nested schema" do
+    test "validates nested parameters" do
+      conn = %{}
+      params = %{"user" => %{"name" => "John", "age" => "25"}}
+
+      {^conn, validated_params} = NestedSchemaController.create(conn, params)
+
+      assert validated_params.user.name == "John"
+      assert validated_params.user.age == 25
+    end
+
+    test "applies defaults to nested parameters" do
+      conn = %{}
+      params = %{"filter" => %{}}
+
+      {^conn, validated_params} = NestedSchemaController.search(conn, params)
+
+      assert validated_params.filter.category == "books"
+      assert validated_params.filter.sort == "name"
+    end
+
+    test "validates nested enum constraints" do
+      conn = %{}
+      params = %{"filter" => %{"category" => "movies", "sort" => "date"}}
+
+      {^conn, validated_params} = NestedSchemaController.search(conn, params)
+
+      assert validated_params.filter.category == "movies"
+      assert validated_params.filter.sort == "date"
+    end
+
+    test "handles missing nested object with fallback" do
+      conn = %{}
+      params = %{}
+
+      {^conn, validated_params} = NestedSchemaController.create(conn, params)
+
+      # In fallback mode, missing nested params should get a map with defaults
+      assert is_nil(validated_params.user.name)
+      assert is_nil(validated_params.user.age)
+    end
+
+    test "validates constraints on nested parameters" do
+      conn = %{}
+      params = %{"user" => %{"name" => "John", "age" => "16"}}
+
+      {^conn, validated_params} = NestedSchemaController.create(conn, params)
+
+      # Age is below min (18), should fallback
+      assert validated_params.user.name == "John"
+      assert is_nil(validated_params.user.age)
+    end
+  end
+
+  describe "mixed flat and nested schema" do
+    test "validates both flat and nested parameters" do
+      conn = %{}
+      params = %{"name" => "John", "settings" => %{"theme" => "dark", "notifications" => "false"}}
+
+      {^conn, validated_params} = MixedSchemaController.update(conn, params)
+
+      assert validated_params.name == "John"
+      assert validated_params.settings.theme == "dark"
+      assert validated_params.settings.notifications == false
+    end
+
+    test "applies defaults to nested while validating flat" do
+      conn = %{}
+      params = %{"name" => "John", "settings" => %{}}
+
+      {^conn, validated_params} = MixedSchemaController.update(conn, params)
+
+      assert validated_params.name == "John"
+      assert validated_params.settings.theme == "light"
+      assert validated_params.settings.notifications == true
+    end
+
+    test "handles missing nested object in mixed schema" do
+      conn = %{}
+      params = %{"name" => "John"}
+
+      {^conn, validated_params} = MixedSchemaController.update(conn, params)
+
+      assert validated_params.name == "John"
+      assert is_map(validated_params.settings)
+      assert validated_params.settings.theme == "light"
+    end
+  end
+
+  describe "double nested schema" do
+    test "validates double nested parameters" do
+      conn = %{}
+
+      params = %{
+        "user" => %{
+          "name" => "John",
+          "address" => %{
+            "street" => "Main St",
+            "city" => "New York",
+            "postal_code" => "10001"
+          }
+        }
+      }
+
+      {^conn, validated_params} = DoubleNestedSchemaController.create(conn, params)
+
+      assert validated_params.user.name == "John"
+      assert validated_params.user.address.street == "Main St"
+      assert validated_params.user.address.city == "New York"
+      assert validated_params.user.address.postal_code == "10001"
+    end
+
+    test "applies defaults to double nested parameters" do
+      conn = %{}
+
+      params = %{
+        "user" => %{
+          "name" => "John",
+          "address" => %{
+            "city" => "New York"
+          }
+        }
+      }
+
+      {^conn, validated_params} = DoubleNestedSchemaController.create(conn, params)
+
+      assert validated_params.user.name == "John"
+      assert validated_params.user.address.street == ""
+      assert validated_params.user.address.city == "New York"
+      assert validated_params.user.address.postal_code == ""
+    end
+
+    test "validates all fields in double nested parameters" do
+      conn = %{}
+
+      params = %{
+        "user" => %{
+          "name" => "John",
+          "address" => %{
+            "street" => "123 Main St",
+            "city" => "New York",
+            "postal_code" => "12345"
+          }
+        }
+      }
+
+      {^conn, validated_params} = DoubleNestedSchemaController.create(conn, params)
+
+      assert validated_params.user.name == "John"
+      assert validated_params.user.address.street == "123 Main St"
+      assert validated_params.user.address.city == "New York"
+      assert validated_params.user.address.postal_code == "12345"
+    end
+
+    test "validates triple nested parameters" do
+      conn = %{}
+
+      params = %{
+        "company" => %{
+          "name" => "Acme Corp",
+          "headquarters" => %{
+            "country" => "UK",
+            "contact" => %{
+              "email" => "info@acme.com",
+              "phone" => "+44-123-456"
+            }
+          }
+        }
+      }
+
+      {^conn, validated_params} = DoubleNestedSchemaController.register(conn, params)
+
+      assert validated_params.company.name == "Acme Corp"
+      assert validated_params.company.headquarters.country == "UK"
+      assert validated_params.company.headquarters.contact.email == "info@acme.com"
+      assert validated_params.company.headquarters.contact.phone == "+44-123-456"
+    end
+
+    test "applies defaults to triple nested parameters" do
+      conn = %{}
+
+      params = %{
+        "company" => %{
+          "name" => "Acme Corp",
+          "headquarters" => %{
+            "contact" => %{
+              "email" => "info@acme.com"
+            }
+          }
+        }
+      }
+
+      {^conn, validated_params} = DoubleNestedSchemaController.register(conn, params)
+
+      assert validated_params.company.name == "Acme Corp"
+      assert validated_params.company.headquarters.country == "US"
+      assert validated_params.company.headquarters.contact.email == "info@acme.com"
+      assert validated_params.company.headquarters.contact.phone == ""
+    end
+
+    test "handles missing double nested object with fallback" do
+      conn = %{}
+
+      params = %{
+        "user" => %{
+          "name" => "John"
+        }
+      }
+
+      {^conn, validated_params} = DoubleNestedSchemaController.create(conn, params)
+
+      assert validated_params.user.name == "John"
+      assert is_map(validated_params.user.address)
+    end
+  end
+
+  describe "empty nested schema" do
+    test "nothing happens when provided with empty user in params" do
+      conn = %{}
+      params = %{"user" => %{}}
+
+      {^conn, validated_params} = EmptyNestedSchemaController.create(conn, params)
+
+      assert validated_params.user == %{}
+    end
+
+    test "nothing happens when provided with user in params" do
+      conn = %{}
+      params = %{"user" => %{"name" => "John"}}
+
+      {^conn, validated_params} = EmptyNestedSchemaController.create(conn, params)
+
+      assert validated_params.user == %{}
+    end
+
+    test "nothing happens when provided with empty params" do
+      conn = %{}
+      params = %{}
+
+      {^conn, validated_params} = EmptyNestedSchemaController.create(conn, params)
+
+      assert validated_params.user == %{}
+    end
+  end
+
   describe "render module" do
     test "renders without params" do
       module =
@@ -228,6 +558,18 @@ defmodule Filtr.ControllerTest do
       assert_raise ArgumentError, fn ->
         defmodule TestInvalidErrorModeController do
           use Filtr.Controller, error_mode: :invalid
+        end
+      end
+    end
+
+    test "raises on invalid nested schema" do
+      assert_raise ArgumentError, fn ->
+        defmodule TestInvalidNestedSchemaController do
+          use Filtr.Controller
+
+          param :user do
+            IO.inspect("Hello World")
+          end
         end
       end
     end

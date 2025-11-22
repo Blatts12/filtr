@@ -30,6 +30,14 @@ defmodule Filtr.LiveView do
     end
   end
 
+  defmacro param(name, do: nested_block) do
+    nested_schema = Helpers.render_ast_to_schema(nested_block)
+
+    quote do
+      @filtr_params {unquote(name), unquote(Macro.escape(nested_schema))}
+    end
+  end
+
   @doc """
   Defines a parameter with its type and validation options.
 
@@ -56,8 +64,15 @@ defmodule Filtr.LiveView do
       end
     else
       filtr_schema =
-        Map.new(filtr_params, fn {key, opts} ->
-          {key, Helpers.parse_param_opts(opts)}
+        Map.new(filtr_params, fn {key, opts_or_schema} ->
+          {
+            key,
+            if(is_map(opts_or_schema),
+              # If opts_or_schema is a map, it's a nested schema
+              do: opts_or_schema,
+              else: Helpers.parse_param_opts(opts_or_schema)
+            )
+          }
         end)
 
       quote do
