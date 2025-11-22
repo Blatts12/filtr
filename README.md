@@ -1,5 +1,5 @@
 
-![Filtr logo](./assets/logo.png)
+![Filtr logo](https://raw.githubusercontent.com/Blatts12/filtr/refs/heads/main/assets/logo.png)
 
 Parameter validation library for Elixir with Phoenix integration.
 
