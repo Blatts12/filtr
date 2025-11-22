@@ -7,8 +7,11 @@ ci:
 test:
     mix test
 
-publish:
+pub:
     mix hex.publish
+
+pubdocs:
+    mix hex.publish docs
 
 docs:
     mix docs --open

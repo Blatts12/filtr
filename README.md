@@ -1,4 +1,5 @@
-# Filtr
+
+![Filtr logo](./assets/logo.png)
 
 Parameter validation library for Elixir with Phoenix integration.
 
