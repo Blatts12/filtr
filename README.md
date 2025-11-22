@@ -67,18 +67,17 @@ defmodule MyAppWeb.UserController do
   end
 
   def search(conn, params) do
-    # Access nested params with dot notation
     json(conn, %{query: params.filters.q, page: params.filters.page})
   end
 
-  # List of nested schemas
+  # List of nested schema
   param :items, :list do
     param :name, :string, required: true
     param :quantity, :integer, min: 1, default: 1
   end
 
   def order(conn, params) do
-    # params.items is a list of validated item objects
+    # params.items is a list
     json(conn, %{items: params.items})
   end
 end
