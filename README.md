@@ -645,7 +645,7 @@ end
 
 ## TODO
 
-- [ ] Logo
+- [x] Logo
 - [ ] Docs in Code
 - [ ] More Tests
 - [ ] Benchmarks
