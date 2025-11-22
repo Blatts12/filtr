@@ -1,4 +1,3 @@
-
 ![Filtr logo](https://raw.githubusercontent.com/Blatts12/filtr/refs/heads/main/assets/logo.png)
 
 Parameter validation library for Elixir with Phoenix integration.
@@ -12,7 +11,7 @@ Filtr provides a flexible, plugin-based system for validating and casting parame
 - **Multiple Error Modes** - Fallback, strict, and raise modes with per-field overrides
 - **Zero Dependencies** - Lightweight core library
 - **attr-like `param` macro** - Familiar, declarative syntax just like for Phoenix Components
-- **Nested Schemas** - Deep nesting with `param do...end` macro syntax
+- **Nested Schemas** - Deep nesting with `param ... do...end` macro syntax
 
 ## Requirements
 
@@ -71,6 +70,17 @@ defmodule MyAppWeb.UserController do
     # Access nested params with dot notation
     json(conn, %{query: params.filters.q, page: params.filters.page})
   end
+
+  # List of nested schemas
+  param :items, :list do
+    param :name, :string, required: true
+    param :quantity, :integer, min: 1, default: 1
+  end
+
+  def order(conn, params) do
+    # params.items is a list of validated item objects
+    json(conn, %{items: params.items})
+  end
 end
 ```
 
@@ -81,22 +91,28 @@ defmodule MyAppWeb.SearchLive do
   use MyAppWeb, :live_view
   use Filtr.LiveView, error_mode: :raise
 
-  # Nested parameters for better organization
-  param :search do
-    param :query, :string, required: true, min: 1
-    param :limit, :integer, default: 10, min: 1, max: 100
-  end
+  param :query, :string, required: true, min: 1
+  param :limit, :integer, default: 10, min: 1, max: 100
 
+  # Nested parameters for better organization
   param :filters do
     param :category, :string, default: "all"
     param :sort, :string, in: ["name", "date"], default: "name"
   end
 
+  # List of nested schemas
+  param :tags, :list do
+    param :label, :string, required: true
+    param :color, :string, in: ["red", "blue", "green"], default: "blue"
+  end
+
   def mount(_params, _session, socket) do
     # socket.assigns.filtr contains validated params
-    # socket.assigns.filtr.search.query - validated query string
-    # socket.assigns.filtr.search.limit - validated limit (defaults to 10)
+    # socket.assigns.filtr.query - validated query string
+    # socket.assigns.filtr.limit - validated limit (defaults to 10)
     # socket.assigns.filtr.filters.category - validated category
+    # socket.assigns.filtr.filters.sort - validated sort
+    # socket.assigns.filtr.tags - validated list of tag objects
     {:ok, socket}
   end
 
@@ -218,10 +234,9 @@ defmodule MyAppWeb.UserController do
       json(conn, %{message: "User #{params.name} created"})
     else
       # Some params have errors, collect and return them
-      errors = Filtr.collect_errors(params)
       conn
       |> put_status(:bad_request)
-      |> json(%{errors: errors})
+      |> json(%{errors: collect_errors(params)})
     end
   end
 end
@@ -316,18 +331,97 @@ result = Filtr.run(schema, params)
 
 ### List of Nested Schemas
 
+Filtr supports lists containing nested schema, allowing you to validate arrays of complex objects.
+
+#### Macro Syntax (Controllers & LiveViews)
+
+Use the `param :field, :list do...end` syntax for clean, declarative list schemas:
+
+```elixir
+defmodule MyAppWeb.OrderController do
+  use Filtr.Controller
+
+  # List of items with nested validation
+  param :items, :list do
+    param :name, :string, required: true
+    param :quantity, :integer, min: 1, default: 1
+    param :price, :float, min: 0
+  end
+
+  def create(conn, params) do
+    # params.items is a list of validated item objects
+    # Each item has validated name, quantity, and price fields
+    total = Enum.reduce(params.items, 0, fn item, acc ->
+      acc + (item.quantity * item.price)
+    end)
+
+    json(conn, %{total: total})
+  end
+end
+```
+
+**LiveView with URL Parameters:**
+
+```elixir
+defmodule MyAppWeb.UserLive do
+  use Filtr.LiveView
+
+  param :users, :list do
+    param :name, :string, required: true
+    param :age, :integer, min: 18
+  end
+
+  def mount(_params, _session, socket) do
+    # socket.assigns.filtr.users is a validated list
+    {:ok, socket}
+  end
+end
+
+# URL format: /users?users[0][name]=John&users[0][age]=25&users[1][name]=Jane&users[1][age]=30
+# Converts to: [%{name: "John", age: 25}, %{name: "Jane", age: 30}]
+```
+
+#### Map Syntax (Standalone)
+
+For standalone usage, use the map syntax with `{:list, schema}`:
+
 ```elixir
 schema = %{
   items: [
     type: {
       :list,
       %{
-        name: [type: :string],
+        name: [type: :string, validators: [required: true]],
         quantity: [type: :integer, validators: [min: 1]]
       }
     }
   ]
 }
+
+params = %{
+  "items" => [
+    %{"name" => "Product A", "quantity" => "5"},
+    %{"name" => "Product B", "quantity" => "3"}
+  ]
+}
+
+result = Filtr.run(schema, params)
+# %{items: [
+#   %{name: "Product A", quantity: 5},
+#   %{name: "Product B", quantity: 3}
+# ]}
+```
+
+#### Indexed Map Support
+
+Phoenix parses URL array parameters as indexed maps. Filtr automatically converts these to lists:
+
+```elixir
+# Phoenix converts: users[0][name]=John&users[1][name]=Jane
+# Into: %{"users" => %{"0" => %{"name" => "John"}, "1" => %{"name" => "Jane"}}}
+
+# Filtr automatically converts to:
+# %{users: [%{name: "John"}, %{name: "Jane"}]}
 ```
 
 ### Custom Cast Functions
@@ -410,6 +504,7 @@ end
 ```
 
 **Use cases:**
+
 - **Critical fields** - Use `:raise` or `:strict` for fields that must be valid
 - **Optional fields** - Use `:fallback` with defaults for non-critical data
 - **Mixed validation** - Combine modes to handle different requirements in the same schema

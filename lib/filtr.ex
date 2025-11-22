@@ -25,9 +25,41 @@ defmodule Filtr do
           case type do
             {:list, nested_schema} when is_map(nested_schema) ->
               values = get_value(params, key)
-              nested_result = run(nested_schema, values, run_opts)
-              nested_valid? = Map.get(nested_result, :_valid?, true)
-              nested_result = Map.delete(nested_result, :_valid?)
+
+              {nested_result, nested_valid?} =
+                cond do
+                  is_nil(values) or values == "" ->
+                    {[], true}
+
+                  is_list(values) ->
+                    {result, valid?} =
+                      Enum.reduce(values, {[], true}, fn value, {acc, valid?} ->
+                        nested_result = run(nested_schema, value, run_opts)
+                        nested_valid? = Map.get(nested_result, :_valid?, true)
+                        nested_result = Map.delete(nested_result, :_valid?)
+
+                        {[nested_result | acc], valid? and nested_valid?}
+                      end)
+
+                    {Enum.reverse(result), valid?}
+
+                  is_map(values) ->
+                    values = Enum.sort_by(values, fn {key, _value} -> key end)
+
+                    {result, valid?} =
+                      Enum.reduce(values, {[], true}, fn {_, value}, {acc, valid?} ->
+                        nested_result = run(nested_schema, value, run_opts)
+                        nested_valid? = Map.get(nested_result, :_valid?, true)
+                        nested_result = Map.delete(nested_result, :_valid?)
+
+                        {[nested_result | acc], valid? and nested_valid?}
+                      end)
+
+                    {Enum.reverse(result), valid?}
+
+                  true ->
+                    {[], true}
+                end
 
               {Map.put(acc, key, nested_result), acc_valid? and nested_valid?}
 

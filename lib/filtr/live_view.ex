@@ -14,6 +14,7 @@ defmodule Filtr.LiveView do
     end
 
     quote do
+      import Filtr, only: [collect_errors: 1]
       import Filtr.LiveView, only: [param: 2, param: 3]
 
       alias Phoenix.LiveView.Socket
@@ -48,7 +49,17 @@ defmodule Filtr.LiveView do
       param :email, :string, required: true, pattern: ~r/@/
       param :tags, {:list, :string}, default: []
   """
-  defmacro param(name, type, opts \\ []) do
+  defmacro param(name, type, opts \\ [])
+
+  defmacro param(name, :list, do: nested_block) do
+    nested_schema = Helpers.render_ast_to_schema(nested_block)
+
+    quote do
+      @filtr_params {unquote(name), [type: {:list, unquote(Macro.escape(nested_schema))}]}
+    end
+  end
+
+  defmacro param(name, type, opts) do
     quote do
       @filtr_params {unquote(name), Keyword.put(unquote(opts), :type, unquote(type))}
     end

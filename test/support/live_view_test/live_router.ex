@@ -9,6 +9,7 @@ defmodule Filtr.LiveViewTest.LiveRouter do
   alias Filtr.LiveViewTest.DoubleNestedLive
   alias Filtr.LiveViewTest.EmptyNestedLive
   alias Filtr.LiveViewTest.FallbackLive
+  alias Filtr.LiveViewTest.ListNestedLive
   alias Filtr.LiveViewTest.MixedLive
   alias Filtr.LiveViewTest.NestedLive
   alias Filtr.LiveViewTest.RaiseLive
@@ -23,6 +24,7 @@ defmodule Filtr.LiveViewTest.LiveRouter do
     live("/mixed", MixedLive)
     live("/double_nested", DoubleNestedLive)
     live("/empty_nested", EmptyNestedLive)
+    live("/list_nested", ListNestedLive)
   end
 
   def session(%Plug.Conn{}, extra), do: Map.put(extra, "called", true)

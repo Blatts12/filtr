@@ -124,15 +124,18 @@ defmodule FiltrTest do
       }
 
       params = %{
-        "items" => %{
-          "name" => "Product A",
-          "quantity" => "5"
-        }
+        "items" => [
+          %{
+            "name" => "Product A",
+            "quantity" => "5"
+          }
+        ]
       }
 
       result = Filtr.run(schema, params)
-      assert result.items.name == "Product A"
-      assert result.items.quantity == 5
+      assert [item] = result.items
+      assert item.name == "Product A"
+      assert item.quantity == 5
     end
   end
 

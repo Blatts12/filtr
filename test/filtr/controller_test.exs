@@ -146,6 +146,39 @@ defmodule Filtr.ControllerTest do
     end
   end
 
+  defmodule ListNestedSchemaController do
+    use Filtr.Controller
+
+    param :users, :list do
+      param :name, :string, required: true
+      param :age, :integer, min: 18
+    end
+
+    def create(conn, params) do
+      {conn, params}
+    end
+
+    param :tags, :list do
+      param :label, :string, default: "default"
+      param :color, :string, in: ["red", "blue", "green"], default: "blue"
+    end
+
+    def update(conn, params) do
+      {conn, params}
+    end
+
+    param :title, :string, required: true
+
+    param :items, :list do
+      param :name, :string, required: true
+      param :quantity, :integer, min: 1, default: 1
+    end
+
+    def order(conn, params) do
+      {conn, params}
+    end
+  end
+
   describe "macro" do
     test "controller functions are defined" do
       assert function_exported?(TestController, :create, 2)
@@ -515,6 +548,156 @@ defmodule Filtr.ControllerTest do
       {^conn, validated_params} = EmptyNestedSchemaController.create(conn, params)
 
       assert validated_params.user == %{}
+    end
+  end
+
+  describe "list with nested schema" do
+    test "validates list of nested objects" do
+      conn = %{}
+
+      params = %{
+        "users" => [
+          %{"name" => "John", "age" => "25"},
+          %{"name" => "Jane", "age" => "30"}
+        ]
+      }
+
+      {^conn, validated_params} = ListNestedSchemaController.create(conn, params)
+
+      assert length(validated_params.users) == 2
+      assert Enum.at(validated_params.users, 0).name == "John"
+      assert Enum.at(validated_params.users, 0).age == 25
+      assert Enum.at(validated_params.users, 1).name == "Jane"
+      assert Enum.at(validated_params.users, 1).age == 30
+    end
+
+    test "applies defaults to nested parameters in list" do
+      conn = %{}
+
+      params = %{
+        "tags" => [
+          %{},
+          %{"label" => "custom"}
+        ]
+      }
+
+      {^conn, validated_params} = ListNestedSchemaController.update(conn, params)
+
+      assert length(validated_params.tags) == 2
+      assert Enum.at(validated_params.tags, 0).label == "default"
+      assert Enum.at(validated_params.tags, 0).color == "blue"
+      assert Enum.at(validated_params.tags, 1).label == "custom"
+      assert Enum.at(validated_params.tags, 1).color == "blue"
+    end
+
+    test "validates enum constraints in list" do
+      conn = %{}
+
+      params = %{
+        "tags" => [
+          %{"label" => "tag1", "color" => "red"},
+          %{"label" => "tag2", "color" => "green"}
+        ]
+      }
+
+      {^conn, validated_params} = ListNestedSchemaController.update(conn, params)
+
+      assert Enum.at(validated_params.tags, 0).color == "red"
+      assert Enum.at(validated_params.tags, 1).color == "green"
+    end
+
+    test "falls back on invalid enum values in list" do
+      conn = %{}
+
+      params = %{
+        "tags" => [
+          %{"label" => "tag1", "color" => "invalid"}
+        ]
+      }
+
+      {^conn, validated_params} = ListNestedSchemaController.update(conn, params)
+
+      assert Enum.at(validated_params.tags, 0).color == "blue"
+    end
+
+    test "validates constraints on nested parameters in list" do
+      conn = %{}
+
+      params = %{
+        "users" => [
+          %{"name" => "John", "age" => "25"},
+          %{"name" => "Jane", "age" => "16"}
+        ]
+      }
+
+      {^conn, validated_params} = ListNestedSchemaController.create(conn, params)
+
+      assert Enum.at(validated_params.users, 0).age == 25
+      # Age is below min (18), should fallback to nil
+      assert is_nil(Enum.at(validated_params.users, 1).age)
+    end
+
+    test "handles empty list" do
+      conn = %{}
+      params = %{"users" => []}
+
+      {^conn, validated_params} = ListNestedSchemaController.create(conn, params)
+
+      assert validated_params.users == []
+    end
+
+    test "handles missing list parameter with fallback" do
+      conn = %{}
+      params = %{}
+
+      {^conn, validated_params} = ListNestedSchemaController.create(conn, params)
+
+      assert validated_params.users == []
+    end
+
+    test "validates mixed flat and list with nested schema" do
+      conn = %{}
+
+      params = %{
+        "title" => "Order 1",
+        "items" => [
+          %{"name" => "Item 1", "quantity" => "5"},
+          %{"name" => "Item 2"}
+        ]
+      }
+
+      {^conn, validated_params} = ListNestedSchemaController.order(conn, params)
+
+      assert validated_params.title == "Order 1"
+      assert length(validated_params.items) == 2
+      assert Enum.at(validated_params.items, 0).name == "Item 1"
+      assert Enum.at(validated_params.items, 0).quantity == 5
+      assert Enum.at(validated_params.items, 1).name == "Item 2"
+      assert Enum.at(validated_params.items, 1).quantity == 1
+    end
+
+    test "handles list with some invalid items" do
+      conn = %{}
+
+      params = %{
+        "users" => [
+          %{"name" => "John", "age" => "25"},
+          %{"age" => "30"},
+          %{"name" => "Bob", "age" => "invalid"}
+        ]
+      }
+
+      {^conn, validated_params} = ListNestedSchemaController.create(conn, params)
+
+      assert length(validated_params.users) == 3
+      assert Enum.at(validated_params.users, 0).name == "John"
+      assert Enum.at(validated_params.users, 0).age == 25
+      # Missing required name field, should fallback to nil
+      assert is_nil(Enum.at(validated_params.users, 1).name)
+      assert Enum.at(validated_params.users, 1).age == 30
+      assert Enum.at(validated_params.users, 2).name == "Bob"
+      # Invalid age type, should fallback to nil
+      assert is_nil(Enum.at(validated_params.users, 2).age)
     end
   end
 

@@ -238,6 +238,100 @@ defmodule Filtr.LiveViewTest do
     end
   end
 
+  describe "list with nested schema" do
+    setup [:init_session]
+
+    test "validates list of nested objects with indexed map", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, "/list_nested?users[0][name]=John&users[0][age]=25&users[1][name]=Jane&users[1][age]=30")
+      filtr = get_assigns(lv).filtr
+
+      assert length(filtr.users) == 2
+      assert Enum.at(filtr.users, 0).name == "John"
+      assert Enum.at(filtr.users, 0).age == 25
+      assert Enum.at(filtr.users, 1).name == "Jane"
+      assert Enum.at(filtr.users, 1).age == 30
+    end
+
+    test "applies defaults to nested parameters in list with indexed map", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, "/list_nested?tags[0][color]=&tags[1][label]=custom")
+      filtr = get_assigns(lv).filtr
+
+      assert length(filtr.tags) == 2
+      assert Enum.at(filtr.tags, 0).label == "default"
+      assert Enum.at(filtr.tags, 0).color == "blue"
+      assert Enum.at(filtr.tags, 1).label == "custom"
+      assert Enum.at(filtr.tags, 1).color == "blue"
+    end
+
+    test "validates enum constraints in list with indexed map", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, "/list_nested?tags[0][label]=tag1&tags[0][color]=red&tags[1][label]=tag2&tags[1][color]=green")
+      filtr = get_assigns(lv).filtr
+
+      assert Enum.at(filtr.tags, 0).color == "red"
+      assert Enum.at(filtr.tags, 1).color == "green"
+    end
+
+    test "falls back on invalid enum values in list with indexed map", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, "/list_nested?tags[0][label]=tag1&tags[0][color]=invalid")
+      filtr = get_assigns(lv).filtr
+
+      assert Enum.at(filtr.tags, 0).color == "blue"
+    end
+
+    test "validates constraints on nested parameters in list with indexed map", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, "/list_nested?users[0][name]=John&users[0][age]=25&users[1][name]=Jane&users[1][age]=16")
+      filtr = get_assigns(lv).filtr
+
+      assert Enum.at(filtr.users, 0).age == 25
+      # Age is below min (18), should fallback to nil
+      assert is_nil(Enum.at(filtr.users, 1).age)
+    end
+
+    test "handles missing list parameter with fallback", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, "/list_nested")
+      filtr = get_assigns(lv).filtr
+
+      assert filtr.users == []
+    end
+
+    test "validates mixed flat and list with nested schema using indexed map", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, "/list_nested?items[0][name]=Item 1&items[0][quantity]=5&items[1][name]=Item 2")
+      filtr = get_assigns(lv).filtr
+
+      assert length(filtr.items) == 2
+      assert Enum.at(filtr.items, 0).name == "Item 1"
+      assert Enum.at(filtr.items, 0).quantity == 5
+      assert Enum.at(filtr.items, 1).name == "Item 2"
+      assert Enum.at(filtr.items, 1).quantity == 1
+    end
+
+    test "handles indexed map with some invalid items", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, "/list_nested?users[0][name]=John&users[0][age]=25&users[1][age]=30&users[2][name]=Bob&users[2][age]=invalid")
+      filtr = get_assigns(lv).filtr
+
+      assert length(filtr.users) == 3
+      assert Enum.at(filtr.users, 0).name == "John"
+      assert Enum.at(filtr.users, 0).age == 25
+      # Missing required name field, should fallback to nil
+      assert is_nil(Enum.at(filtr.users, 1).name)
+      assert Enum.at(filtr.users, 1).age == 30
+      assert Enum.at(filtr.users, 2).name == "Bob"
+      # Invalid age type, should fallback to nil
+      assert is_nil(Enum.at(filtr.users, 2).age)
+    end
+
+    test "handles non-sequential indexed map keys", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, "/list_nested?users[2][name]=Bob&users[2][age]=35&users[0][name]=John&users[0][age]=25&users[1][name]=Jane&users[1][age]=30")
+      filtr = get_assigns(lv).filtr
+
+      # Should be sorted by keys
+      assert length(filtr.users) == 3
+      assert Enum.at(filtr.users, 0).name == "John"
+      assert Enum.at(filtr.users, 1).name == "Jane"
+      assert Enum.at(filtr.users, 2).name == "Bob"
+    end
+  end
+
   describe "renders module" do
     test "creates module without params" do
       module =
