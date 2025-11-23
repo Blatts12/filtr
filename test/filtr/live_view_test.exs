@@ -242,7 +242,9 @@ defmodule Filtr.LiveViewTest do
     setup [:init_session]
 
     test "validates list of nested objects with indexed map", %{conn: conn} do
-      {:ok, lv, _html} = live(conn, "/list_nested?users[0][name]=John&users[0][age]=25&users[1][name]=Jane&users[1][age]=30")
+      {:ok, lv, _html} =
+        live(conn, "/list_nested?users[0][name]=John&users[0][age]=25&users[1][name]=Jane&users[1][age]=30")
+
       filtr = get_assigns(lv).filtr
 
       assert length(filtr.users) == 2
@@ -264,7 +266,9 @@ defmodule Filtr.LiveViewTest do
     end
 
     test "validates enum constraints in list with indexed map", %{conn: conn} do
-      {:ok, lv, _html} = live(conn, "/list_nested?tags[0][label]=tag1&tags[0][color]=red&tags[1][label]=tag2&tags[1][color]=green")
+      {:ok, lv, _html} =
+        live(conn, "/list_nested?tags[0][label]=tag1&tags[0][color]=red&tags[1][label]=tag2&tags[1][color]=green")
+
       filtr = get_assigns(lv).filtr
 
       assert Enum.at(filtr.tags, 0).color == "red"
@@ -279,7 +283,9 @@ defmodule Filtr.LiveViewTest do
     end
 
     test "validates constraints on nested parameters in list with indexed map", %{conn: conn} do
-      {:ok, lv, _html} = live(conn, "/list_nested?users[0][name]=John&users[0][age]=25&users[1][name]=Jane&users[1][age]=16")
+      {:ok, lv, _html} =
+        live(conn, "/list_nested?users[0][name]=John&users[0][age]=25&users[1][name]=Jane&users[1][age]=16")
+
       filtr = get_assigns(lv).filtr
 
       assert Enum.at(filtr.users, 0).age == 25
@@ -306,7 +312,12 @@ defmodule Filtr.LiveViewTest do
     end
 
     test "handles indexed map with some invalid items", %{conn: conn} do
-      {:ok, lv, _html} = live(conn, "/list_nested?users[0][name]=John&users[0][age]=25&users[1][age]=30&users[2][name]=Bob&users[2][age]=invalid")
+      {:ok, lv, _html} =
+        live(
+          conn,
+          "/list_nested?users[0][name]=John&users[0][age]=25&users[1][age]=30&users[2][name]=Bob&users[2][age]=invalid"
+        )
+
       filtr = get_assigns(lv).filtr
 
       assert length(filtr.users) == 3
@@ -321,7 +332,12 @@ defmodule Filtr.LiveViewTest do
     end
 
     test "handles non-sequential indexed map keys", %{conn: conn} do
-      {:ok, lv, _html} = live(conn, "/list_nested?users[2][name]=Bob&users[2][age]=35&users[0][name]=John&users[0][age]=25&users[1][name]=Jane&users[1][age]=30")
+      {:ok, lv, _html} =
+        live(
+          conn,
+          "/list_nested?users[2][name]=Bob&users[2][age]=35&users[0][name]=John&users[0][age]=25&users[1][name]=Jane&users[1][age]=30"
+        )
+
       filtr = get_assigns(lv).filtr
 
       # Should be sorted by keys
@@ -375,7 +391,7 @@ defmodule Filtr.LiveViewTest do
           use Filtr.LiveView
 
           param :user do
-            IO.inspect("Hello World")
+            String.downcase("ASD")
           end
         end
       end

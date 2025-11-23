@@ -751,7 +751,7 @@ defmodule Filtr.ControllerTest do
           use Filtr.Controller
 
           param :user do
-            IO.inspect("Hello World")
+            String.downcase("ASD")
           end
         end
       end

@@ -11,10 +11,8 @@ defmodule Filtr do
     {result, valid?} =
       Enum.reduce(schema, {%{}, true}, fn
         {key, nested_schema}, {acc, acc_valid?} when is_map(nested_schema) ->
-          values = get_value(params, key)
-          nested_result = run(nested_schema, values, run_opts)
-          nested_valid? = Map.get(nested_result, :_valid?, true)
-          nested_result = Map.delete(nested_result, :_valid?)
+          {_key, nested_result, nested_valid?} =
+            process_nested_schema(key, nested_schema, params, run_opts)
 
           {Map.put(acc, key, nested_result), acc_valid? and nested_valid?}
 
@@ -22,71 +20,100 @@ defmodule Filtr do
           opts = Keyword.merge(run_opts, opts)
           {type, opts} = Keyword.pop!(opts, :type)
 
-          case type do
-            {:list, nested_schema} when is_map(nested_schema) ->
-              values = get_value(params, key)
+          {_key, processed_value, value_valid?} =
+            case type do
+              {:list, nested_schema} when is_map(nested_schema) ->
+                process_list_with_nested_schema(key, nested_schema, params, run_opts, opts)
 
-              {nested_result, nested_valid?} =
-                cond do
-                  is_nil(values) or values == "" ->
-                    {[], true}
+              {:list, type} ->
+                process_list(key, type, params, opts)
 
-                  is_list(values) ->
-                    {result, valid?} =
-                      Enum.reduce(values, {[], true}, fn value, {acc, valid?} ->
-                        nested_result = run(nested_schema, value, run_opts)
-                        nested_valid? = Map.get(nested_result, :_valid?, true)
-                        nested_result = Map.delete(nested_result, :_valid?)
+              type ->
+                process_field(key, type, params, opts)
+            end
 
-                        {[nested_result | acc], valid? and nested_valid?}
-                      end)
-
-                    {Enum.reverse(result), valid?}
-
-                  is_map(values) ->
-                    values = Enum.sort_by(values, fn {key, _value} -> key end)
-
-                    {result, valid?} =
-                      Enum.reduce(values, {[], true}, fn {_, value}, {acc, valid?} ->
-                        nested_result = run(nested_schema, value, run_opts)
-                        nested_valid? = Map.get(nested_result, :_valid?, true)
-                        nested_result = Map.delete(nested_result, :_valid?)
-
-                        {[nested_result | acc], valid? and nested_valid?}
-                      end)
-
-                    {Enum.reverse(result), valid?}
-
-                  true ->
-                    {[], true}
-                end
-
-              {Map.put(acc, key, nested_result), acc_valid? and nested_valid?}
-
-            {:list, type} ->
-              values =
-                params
-                |> get_value(key)
-                |> Enum.map(fn value ->
-                  key
-                  |> process_value(value, type, opts)
-                  |> elem(1)
-                end)
-
-              list_valid? = not Enum.any?(values, &match?({:error, _}, &1))
-
-              {Map.put(acc, key, values), acc_valid? and list_valid?}
-
-            type ->
-              value = get_value(params, key)
-              {_key, processed_value} = process_value(key, value, type, opts)
-              value_valid? = not match?({:error, _}, processed_value)
-
-              {Map.put(acc, key, processed_value), acc_valid? and value_valid?}
-          end
+          {Map.put(acc, key, processed_value), acc_valid? and value_valid?}
       end)
 
     Map.put(result, :_valid?, valid?)
+  end
+
+  defp process_nested_schema(key, nested_schema, params, run_opts) do
+    values = get_value(params, key)
+    nested_result = run(nested_schema, values, run_opts)
+    nested_valid? = Map.get(nested_result, :_valid?, true)
+    nested_result = Map.delete(nested_result, :_valid?)
+
+    {key, nested_result, nested_valid?}
+  end
+
+  defp process_list_with_nested_schema(key, nested_schema, params, run_opts, _opts) do
+    values = get_value(params, key)
+
+    {nested_result, nested_valid?} =
+      cond do
+        is_list(values) ->
+          process_list_values(values, nested_schema, run_opts)
+
+        is_map(values) ->
+          process_map_values(values, nested_schema, run_opts)
+
+        true ->
+          {[], true}
+      end
+
+    {key, nested_result, nested_valid?}
+  end
+
+  defp process_list_values(values, nested_schema, run_opts) do
+    {result, valid?} =
+      Enum.reduce(values, {[], true}, fn value, {acc, valid?} ->
+        nested_result = run(nested_schema, value, run_opts)
+        nested_valid? = Map.get(nested_result, :_valid?, true)
+        nested_result = Map.delete(nested_result, :_valid?)
+
+        {[nested_result | acc], valid? and nested_valid?}
+      end)
+
+    {Enum.reverse(result), valid?}
+  end
+
+  defp process_map_values(values, nested_schema, run_opts) do
+    values = Enum.sort_by(values, fn {key, _value} -> key end)
+
+    {result, valid?} =
+      Enum.reduce(values, {[], true}, fn {_, value}, {acc, valid?} ->
+        nested_result = run(nested_schema, value, run_opts)
+        nested_valid? = Map.get(nested_result, :_valid?, true)
+        nested_result = Map.delete(nested_result, :_valid?)
+
+        {[nested_result | acc], valid? and nested_valid?}
+      end)
+
+    {Enum.reverse(result), valid?}
+  end
+
+  defp process_list(key, type, params, opts) do
+    values =
+      params
+      |> get_value(key)
+      |> Enum.map(fn value ->
+        key
+        |> process_value(value, type, opts)
+        |> elem(1)
+      end)
+
+    list_valid? = not Enum.any?(values, &match?({:error, _}, &1))
+
+    {key, values, list_valid?}
+  end
+
+  defp process_field(key, type, params, opts) do
+    value = get_value(params, key)
+    {_key, processed_value} = process_value(key, value, type, opts)
+    value_valid? = not match?({:error, _}, processed_value)
+
+    {key, processed_value, value_valid?}
   end
 
   defp process_value(key, value, type, opts) do
