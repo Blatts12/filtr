@@ -508,6 +508,82 @@ end
 - **Optional fields** - Use `:fallback` with defaults for non-critical data
 - **Mixed validation** - Combine modes to handle different requirements in the same schema
 
+### Custom Error Handlers (Controllers)
+
+Instead of using built-in error modes, you can provide a custom error handler function that receives the connection and validated params when validation fails. This gives you full control over the error response.
+
+#### Function Capture
+
+```elixir
+defmodule MyAppWeb.ErrorHandler do
+  def handle_validation_error(conn, params) do
+    conn
+    |> Plug.Conn.put_status(:bad_request)
+    |> Phoenix.Controller.json(%{errors: Filtr.collect_errors(params)})
+    |> Plug.Conn.halt()
+  end
+end
+
+defmodule MyAppWeb.UserController do
+  use MyAppWeb, :controller
+  use Filtr.Controller, error_mode: &MyAppWeb.ErrorHandler.handle_validation_error/2
+
+  param :name, :string, required: true
+  param :email, :string, required: true, pattern: ~r/@/
+
+  def create(conn, params) do
+    # Only called when validation passes
+    json(conn, %{message: "User #{params.name} created"})
+  end
+end
+```
+
+#### MFA Tuple
+
+```elixir
+defmodule MyAppWeb.UserController do
+  use MyAppWeb, :controller
+  use Filtr.Controller, error_mode: {MyAppWeb.ErrorHandler, :handle_validation_error, 2}
+
+  param :name, :string, required: true
+
+  def create(conn, params) do
+    json(conn, %{user: params.name})
+  end
+end
+```
+
+#### Anonymous Function
+
+```elixir
+defmodule MyAppWeb.UserController do
+  use MyAppWeb, :controller
+  use Filtr.Controller,
+    error_mode: fn conn, params ->
+      conn
+      |> put_status(:unprocessable_entity)
+      |> json(%{errors: collect_errors(params)})
+      |> halt()
+    end
+
+  param :name, :string, required: true
+
+  def create(conn, params) do
+    json(conn, %{user: params.name})
+  end
+end
+```
+
+**Handler function signature:**
+
+The error handler function must have arity 2 and receives:
+- `conn` - The Plug connection
+- `params` - The validated params map (with `_valid?: false` and error tuples for invalid fields)
+
+**When is the handler called?**
+
+The custom error handler is only called when `params._valid?` is `false`. If all parameters pass validation, the original controller function is called with the validated params.
+
 ### Type Passthrough
 
 For parameters that don't need validation:
@@ -812,7 +888,7 @@ end
 - [x] `_valid?` field for strict mode to know if params are valid
 - [x] Move on from `try catch` to different approach for plugin chaining
 - [x] Extract errors function for strict mode
-- [ ] Custom error modes (return 400 error on fail in controllers?)
+- [x] Custom error modes (return 400 error on fail in controllers?)
 - [x] Macro for nested schemas
 
 Distributed under the MIT License.
