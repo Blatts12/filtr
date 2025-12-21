@@ -162,10 +162,6 @@ defmodule Filtr do
     end
   end
 
-  defp default_value(default) when is_function(default, 0), do: default.()
-  defp default_value(:__none__), do: nil
-  defp default_value(default), do: default
-
   defp validate(key, value, type, opts) do
     validators = Keyword.get(opts, :validators, [])
 
@@ -214,8 +210,8 @@ defmodule Filtr do
 
     case error_mode do
       :fallback -> {:ok, default_value(default)}
-      :strict -> {:error, [error]}
       :raise -> raise "Invalid value for #{key}: #{error}"
+      _ -> {:error, [error]}
     end
   end
 
@@ -226,14 +222,9 @@ defmodule Filtr do
 
     case error_mode do
       :fallback -> {:ok, default_value(default)}
-      :strict -> {:error, Enum.uniq(errors)}
       :raise -> raise "Invalid value for #{key}: #{Enum.join(Enum.uniq(errors), ", ")}"
+      _ -> {:error, Enum.uniq(errors)}
     end
-  end
-
-  defp get_value(params, key) do
-    params = params || %{}
-    Map.get(params, to_string(key)) || Map.get(params, key)
   end
 
   defp plugin_cast(plugins, value, type, opts) do
@@ -257,6 +248,15 @@ defmodule Filtr do
       end
     )
   end
+
+  defp get_value(params, key) do
+    params = params || %{}
+    Map.get(params, to_string(key)) || Map.get(params, key)
+  end
+
+  defp default_value(default) when is_function(default, 0), do: default.()
+  defp default_value(:__none__), do: nil
+  defp default_value(default), do: default
 
   @doc """
   Collects all errors from a Filtr result map into a structured error map.

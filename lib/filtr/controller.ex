@@ -31,15 +31,40 @@ defmodule Filtr.Controller do
       end
   """
 
-  alias Filtr.Helpers
-
-  @valid_error_modes [:strict, :fallback, :raise]
+  # credo:disable-for-this-file Credo.Check.Design.AliasUsage
 
   defmacro __using__(opts \\ []) do
-    error_mode = Keyword.get(opts, :error_mode, :fallback)
+    error_mode = Keyword.get(opts, :error_mode) || Filtr.Helpers.default_error_mode()
 
-    if error_mode not in @valid_error_modes do
-      raise ArgumentError, "error_mode must be one of: #{inspect(@valid_error_modes)}"
+    supported_error_mode? =
+      case error_mode do
+        error_mode when is_function(error_mode, 2) ->
+          # Function with arity 2
+          true
+
+        {_module, _function, 2} ->
+          # MFA tuple: {Module, :function, 2}
+          true
+
+        {:&, _, [{:/, _, [_, 2]}]} ->
+          # Function capture with arity 2: &func/2 or &Mod.func/2 (AST)
+          true
+
+        {:{}, _, [_module, _function, 2]} ->
+          # MFA tuple: {Module, :function, 2} (AST)
+          true
+
+        {:fn, _, [{:->, _, [[_arg1, _arg2] | _]}]} ->
+          # Anonymous function with arity 2 (AST)
+          true
+
+        error_mode ->
+          Filtr.Helpers.supported_error_mode?(error_mode)
+      end
+
+    if not supported_error_mode? do
+      raise ArgumentError,
+            "error_mode must be one of: #{inspect(Filtr.Helpers.supported_error_modes())} or function with MFA, function capture or anonymous function with arity 2"
     end
 
     quote do
@@ -48,14 +73,14 @@ defmodule Filtr.Controller do
 
       Module.register_attribute(__MODULE__, :filtr_param_definitions, accumulate: true)
       Module.register_attribute(__MODULE__, :filtr_function_params, accumulate: true)
-      @filtr_error_mode unquote(error_mode)
+      @filtr_error_mode unquote(Macro.escape(error_mode))
       @on_definition Filtr.Controller
       @before_compile Filtr.Controller
     end
   end
 
   defmacro param(name, do: nested_block) do
-    nested_schema = Helpers.render_ast_to_schema(nested_block)
+    nested_schema = Filtr.Helpers.render_ast_to_schema(nested_block)
 
     quote do
       @filtr_param_definitions {unquote(name), unquote(Macro.escape(nested_schema))}
@@ -75,7 +100,7 @@ defmodule Filtr.Controller do
   defmacro param(name, type, opts \\ [])
 
   defmacro param(name, :list, do: nested_block) do
-    nested_schema = Helpers.render_ast_to_schema(nested_block)
+    nested_schema = Filtr.Helpers.render_ast_to_schema(nested_block)
 
     quote do
       @filtr_param_definitions {unquote(name), [type: {:list, unquote(Macro.escape(nested_schema))}]}
@@ -101,7 +126,7 @@ defmodule Filtr.Controller do
               # If opts_or_schema is a map, it's a nested schema
               if(is_map(opts_or_schema),
                 do: opts_or_schema,
-                else: Helpers.parse_param_opts(opts_or_schema)
+                else: Filtr.Helpers.parse_param_opts(opts_or_schema)
               )
             }
           end)
@@ -115,10 +140,11 @@ defmodule Filtr.Controller do
 
   defmacro __before_compile__(env) do
     function_params = Module.get_attribute(env.module, :filtr_function_params, [])
+    error_mode = Module.get_attribute(env.module, :filtr_error_mode) || Filtr.Helpers.default_error_mode()
 
     wrappers =
       for {function_name, schema} <- function_params do
-        generate_wrapper(function_name, schema)
+        generate_wrapper(function_name, schema, error_mode)
       end
 
     quote do
@@ -126,12 +152,97 @@ defmodule Filtr.Controller do
     end
   end
 
-  defp generate_wrapper(function_name, schema) do
+  defp generate_wrapper(function_name, schema, error_func) when is_function(error_func, 2) do
+    # Function with arity 2
     quote do
       defoverridable [{unquote(function_name), 2}]
 
       def unquote(function_name)(conn, params) do
-        validated_params = Filtr.run(unquote(Macro.escape(schema)), params, error_mode: @filtr_error_mode)
+        validated_params = Filtr.run(unquote(Macro.escape(schema)), params, error_mode: :strict)
+
+        if validated_params._valid? do
+          super(conn, validated_params)
+        else
+          unquote(error_func).(conn, validated_params)
+        end
+      end
+    end
+  end
+
+  defp generate_wrapper(function_name, schema, {module, function, 2}) do
+    # MFA tuple
+    quote do
+      defoverridable [{unquote(function_name), 2}]
+
+      def unquote(function_name)(conn, params) do
+        validated_params = Filtr.run(unquote(Macro.escape(schema)), params, error_mode: :strict)
+
+        if validated_params._valid? do
+          super(conn, validated_params)
+        else
+          apply(unquote(module), unquote(function), [conn, validated_params])
+        end
+      end
+    end
+  end
+
+  defp generate_wrapper(function_name, schema, {:&, _, [{:/, _, [_, 2]}]} = error_func) do
+    # Function capture with arity 2 (AST)
+    quote do
+      defoverridable [{unquote(function_name), 2}]
+
+      def unquote(function_name)(conn, params) do
+        validated_params = Filtr.run(unquote(Macro.escape(schema)), params, error_mode: :strict)
+
+        if validated_params._valid? do
+          super(conn, validated_params)
+        else
+          unquote(error_func).(conn, validated_params)
+        end
+      end
+    end
+  end
+
+  defp generate_wrapper(function_name, schema, {:{}, _, [module, function, 2]}) do
+    # MFA tuple (AST)
+    quote do
+      defoverridable [{unquote(function_name), 2}]
+
+      def unquote(function_name)(conn, params) do
+        validated_params = Filtr.run(unquote(Macro.escape(schema)), params, error_mode: :strict)
+
+        if validated_params._valid? do
+          super(conn, validated_params)
+        else
+          apply(unquote(module), unquote(function), [conn, validated_params])
+        end
+      end
+    end
+  end
+
+  defp generate_wrapper(function_name, schema, {:fn, _, [{:->, _, [[_arg1, _arg2] | _]}]} = error_func) do
+    # Anonymous function with arity 2 (AST)
+    quote do
+      defoverridable [{unquote(function_name), 2}]
+
+      def unquote(function_name)(conn, params) do
+        validated_params = Filtr.run(unquote(Macro.escape(schema)), params, error_mode: :strict)
+
+        if validated_params._valid? do
+          super(conn, validated_params)
+        else
+          unquote(error_func).(conn, validated_params)
+        end
+      end
+    end
+  end
+
+  defp generate_wrapper(function_name, schema, error_mode) do
+    quote do
+      defoverridable [{unquote(function_name), 2}]
+
+      def unquote(function_name)(conn, params) do
+        validated_params = Filtr.run(unquote(Macro.escape(schema)), params, error_mode: unquote(error_mode))
         super(conn, validated_params)
       end
     end

@@ -23,6 +23,40 @@ defmodule Filtr.HelpersTest do
     end
   end
 
+  describe "supported_error_mode?/1" do
+    test "returns true for :fallback" do
+      assert Helpers.supported_error_mode?(:fallback) == true
+    end
+
+    test "returns true for :strict" do
+      assert Helpers.supported_error_mode?(:strict) == true
+    end
+
+    test "returns true for :raise" do
+      assert Helpers.supported_error_mode?(:raise) == true
+    end
+
+    test "returns false for invalid modes" do
+      assert Helpers.supported_error_mode?(:invalid) == false
+      assert Helpers.supported_error_mode?(:unknown) == false
+      assert Helpers.supported_error_mode?(nil) == false
+    end
+  end
+
+  describe "supported_error_modes/0" do
+    test "returns list containing all supported modes" do
+      modes = Helpers.supported_error_modes()
+
+      assert :fallback in modes
+      assert :strict in modes
+      assert :raise in modes
+    end
+
+    test "returns exactly three modes" do
+      assert length(Helpers.supported_error_modes()) == 3
+    end
+  end
+
   describe "type_plugin_map/0" do
     test "builds a map from types to their plugins" do
       original_plugins = Application.get_env(:filtr, :plugins, [])

@@ -179,6 +179,42 @@ defmodule Filtr.ControllerTest do
     end
   end
 
+  defmodule ErrorHandlerHelper do
+    def handle_error(conn, params) do
+      {:error_handled, conn, params}
+    end
+  end
+
+  defmodule FunctionCaptureErrorModeController do
+    use Filtr.Controller, error_mode: &Filtr.ControllerTest.ErrorHandlerHelper.handle_error/2
+
+    param :name, :string, required: true
+
+    def create(conn, params) do
+      {conn, params}
+    end
+  end
+
+  defmodule MfaTupleErrorModeController do
+    use Filtr.Controller, error_mode: {Filtr.ControllerTest.ErrorHandlerHelper, :handle_error, 2}
+
+    param :name, :string, required: true
+
+    def create(conn, params) do
+      {conn, params}
+    end
+  end
+
+  defmodule AnonymousFunctionErrorModeController do
+    use Filtr.Controller, error_mode: fn conn, params -> {:anon_error, conn, params} end
+
+    param :name, :string, required: true
+
+    def create(conn, params) do
+      {conn, params}
+    end
+  end
+
   describe "macro" do
     test "controller functions are defined" do
       assert function_exported?(TestController, :create, 2)
@@ -755,6 +791,72 @@ defmodule Filtr.ControllerTest do
           end
         end
       end
+    end
+  end
+
+  describe "function capture error mode" do
+    test "works with valid parameters" do
+      conn = %{}
+      params = %{"name" => "John"}
+
+      {^conn, validated_params} = FunctionCaptureErrorModeController.create(conn, params)
+
+      assert validated_params.name == "John"
+    end
+
+    test "calls custom error handler with invalid parameters" do
+      conn = %{status: :ok}
+      params = %{}
+
+      result = FunctionCaptureErrorModeController.create(conn, params)
+
+      assert {:error_handled, ^conn, error_params} = result
+      assert error_params.name == {:error, ["required"]}
+      assert error_params._valid? == false
+    end
+  end
+
+  describe "MFA tuple error mode" do
+    test "works with valid parameters" do
+      conn = %{}
+      params = %{"name" => "John"}
+
+      {^conn, validated_params} = MfaTupleErrorModeController.create(conn, params)
+
+      assert validated_params.name == "John"
+    end
+
+    test "calls custom error handler with invalid parameters" do
+      conn = %{status: :ok}
+      params = %{}
+
+      result = MfaTupleErrorModeController.create(conn, params)
+
+      assert {:error_handled, ^conn, error_params} = result
+      assert error_params.name == {:error, ["required"]}
+      assert error_params._valid? == false
+    end
+  end
+
+  describe "anonymous function error mode" do
+    test "works with valid parameters" do
+      conn = %{}
+      params = %{"name" => "John"}
+
+      {^conn, validated_params} = AnonymousFunctionErrorModeController.create(conn, params)
+
+      assert validated_params.name == "John"
+    end
+
+    test "calls anonymous function with invalid parameters" do
+      conn = %{status: :ok}
+      params = %{}
+
+      result = AnonymousFunctionErrorModeController.create(conn, params)
+
+      assert {:anon_error, ^conn, error_params} = result
+      assert error_params.name == {:error, ["required"]}
+      assert error_params._valid? == false
     end
   end
 end

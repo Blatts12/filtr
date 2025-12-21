@@ -3,6 +3,7 @@ defmodule Filtr.Helpers do
   Helper functions for Filtr schema processing and plugin management.
   """
 
+  @supported_error_modes [:fallback, :strict, :raise]
   @type_plugin_map_key :filtr_type_plugin_map
 
   @doc """
@@ -14,6 +15,16 @@ defmodule Filtr.Helpers do
   @spec default_error_mode() :: atom()
   def default_error_mode do
     Application.get_env(:filtr, :error_mode) || :fallback
+  end
+
+  @spec supported_error_mode?(mode :: atom()) :: boolean()
+  def supported_error_mode?(mode) do
+    mode in @supported_error_modes
+  end
+
+  @spec supported_error_modes() :: [atom()]
+  def supported_error_modes do
+    @supported_error_modes
   end
 
   @doc """
