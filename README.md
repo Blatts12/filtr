@@ -26,7 +26,7 @@ Add `filtr` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:filtr, "~> 0.3.0"}
+    {:filtr, "~> 0.4.0"}
   ]
 end
 ```
@@ -577,6 +577,7 @@ end
 **Handler function signature:**
 
 The error handler function must have arity 2 and receives:
+
 - `conn` - The Plug connection
 - `params` - The validated params map (with `_valid?: false` and error tuples for invalid fields)
 
