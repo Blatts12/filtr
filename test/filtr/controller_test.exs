@@ -180,6 +180,7 @@ defmodule Filtr.ControllerTest do
   end
 
   defmodule ErrorHandlerHelper do
+    @moduledoc false
     def handle_error(conn, params) do
       {:error_handled, conn, params}
     end
