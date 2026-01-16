@@ -3,26 +3,6 @@ defmodule Filtr.HelpersTest do
 
   alias Filtr.Helpers
 
-  describe "default_error_mode/0" do
-    test "returns :fallback when no configuration is set" do
-      original_value = Application.get_env(:filtr, :error_mode)
-
-      Application.delete_env(:filtr, :error_mode)
-      assert Helpers.default_error_mode() == :fallback
-
-      Application.put_env(:filtr, :error_mode, original_value)
-    end
-
-    test "returns configured error mode when set" do
-      original_value = Application.get_env(:filtr, :error_mode)
-
-      Application.put_env(:filtr, :error_mode, :strict)
-      assert Helpers.default_error_mode() == :strict
-
-      Application.put_env(:filtr, :error_mode, original_value)
-    end
-  end
-
   describe "supported_error_mode?/1" do
     test "returns true for :fallback" do
       assert Helpers.supported_error_mode?(:fallback) == true

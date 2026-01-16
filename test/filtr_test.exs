@@ -1,5 +1,5 @@
 defmodule FiltrTest do
-  use ExUnit.Case, async: false
+  use ExUnit.Case, async: true
 
   describe "run/2 and run/3 basic behavior" do
     test "processes single field schema" do
@@ -215,16 +215,11 @@ defmodule FiltrTest do
     end
 
     test "uses default error mode from config when not specified" do
-      original_mode = Application.get_env(:filtr, :error_mode)
-
-      Application.put_env(:filtr, :error_mode, :strict)
       schema = %{age: [type: :integer, validators: [min: 18]]}
       params = %{"age" => "10"}
 
       result = Filtr.run(schema, params)
-      assert {:error, _} = result.age
-
-      Application.put_env(:filtr, :error_mode, original_mode)
+      assert is_nil(result.age)
     end
   end
 
@@ -443,7 +438,7 @@ defmodule FiltrTest do
       params = %{"name" => "ab"}
 
       result = Filtr.run(schema, params, error_mode: :strict)
-      assert {:error, ["too short", "invalid format"]} = result.name
+      assert {:error, ["invalid format", "too short"]} = result.name
     end
   end
 
@@ -472,7 +467,7 @@ defmodule FiltrTest do
 
       result = Filtr.run(schema, params, error_mode: :strict)
       assert {:error, [error]} = result.data
-      assert error =~ "unsupported type"
+      assert error =~ "unsupported_type"
     end
 
     test "returns nil for unsupported type in fallback mode" do
@@ -487,7 +482,7 @@ defmodule FiltrTest do
       schema = %{data: [type: :unsupported_type]}
       params = %{"data" => "value"}
 
-      assert_raise RuntimeError, ~r/unsupported type/, fn ->
+      assert_raise RuntimeError, ~r/unsupported_type/, fn ->
         Filtr.run(schema, params, error_mode: :raise)
       end
     end

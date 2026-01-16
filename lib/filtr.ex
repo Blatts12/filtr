@@ -249,9 +249,10 @@ defmodule Filtr do
     )
   end
 
+  defp get_value(nil, _key), do: nil
+
   defp get_value(params, key) do
-    params = params || %{}
-    Map.get(params, to_string(key)) || Map.get(params, key)
+    Map.get_lazy(params, to_string(key), fn -> Map.get(params, key) end)
   end
 
   defp default_value(default) when is_function(default, 0), do: default.()
