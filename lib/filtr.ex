@@ -41,8 +41,7 @@ defmodule Filtr do
   defp process_nested_schema(key, nested_schema, params, run_opts) do
     values = get_value(params, key)
     nested_result = run(nested_schema, values, run_opts)
-    nested_valid? = Map.get(nested_result, :_valid?, true)
-    nested_result = Map.delete(nested_result, :_valid?)
+    {nested_valid?, nested_result} = Map.pop(nested_result, :_valid?, true)
 
     {key, nested_result, nested_valid?}
   end
