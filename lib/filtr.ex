@@ -8,6 +8,8 @@ defmodule Filtr do
   @spec run(schema :: map(), params :: map()) :: map()
   @spec run(schema :: map(), params :: map(), opts :: keyword()) :: map()
   def run(schema, params, run_opts \\ []) do
+    run_opts = Keyword.put(run_opts, :plugin_map, Helpers.type_plugin_map())
+
     {result, valid?} =
       Enum.reduce(schema, {%{}, true}, fn
         {key, nested_schema}, {acc, acc_valid?} when is_map(nested_schema) ->
@@ -114,15 +116,17 @@ defmodule Filtr do
   end
 
   defp process_value(key, value, type, opts) do
-    with {:ok, value} <- cast(key, value, type, opts),
-         {:ok, value} <- validate(key, value, type, opts) do
+    plugins = opts[:plugin_map][type] || []
+
+    with {:ok, value} <- cast(key, value, type, opts, plugins),
+         {:ok, value} <- validate(key, value, type, opts, plugins) do
       {key, value}
     else
       error -> {key, error}
     end
   end
 
-  defp cast(key, value, cast_fn, opts) when is_function(cast_fn, 2) do
+  defp cast(key, value, cast_fn, opts, _plugins) when is_function(cast_fn, 2) do
     case cast_fn.(value, opts) do
       {:ok, value} -> {:ok, value}
       {:error, errors} when is_list(errors) -> process_errors_with_mode(key, errors, opts)
@@ -131,10 +135,10 @@ defmodule Filtr do
     end
   end
 
-  defp cast(_key, value, :__none__, _opts), do: {:ok, value}
-  defp cast(_key, value, nil, _opts), do: {:ok, value}
+  defp cast(_key, value, :__none__, _opts, _plugins), do: {:ok, value}
+  defp cast(_key, value, nil, _opts, _plugins), do: {:ok, value}
 
-  defp cast(key, nil, _type, opts) do
+  defp cast(key, nil, _type, opts, _plugins) do
     validators = Keyword.get(opts, :validators, [])
     default = Keyword.get(validators, :default, :__none__)
     required? = Keyword.get(validators, :required, false)
@@ -146,9 +150,7 @@ defmodule Filtr do
     end
   end
 
-  defp cast(key, value, type, opts) do
-    plugins = Helpers.type_plugin_map()[type]
-
+  defp cast(key, value, type, opts, plugins) do
     if is_nil(plugins) do
       process_error_with_mode(key, "unsupported type - #{type}", opts)
     else
@@ -159,13 +161,18 @@ defmodule Filtr do
     end
   end
 
-  defp validate(key, value, type, opts) do
+  defp validate(key, value, type, opts, plugins) do
     validators = Keyword.get(opts, :validators, [])
 
     errors =
       validators
-      |> Keyword.drop([:default, :required])
       |> Enum.map(fn
+        {:default, _} ->
+          true
+
+        {:required, _} ->
+          true
+
         {:custom, func} when is_function(func, 3) ->
           func.(value, type, opts)
 
@@ -176,7 +183,6 @@ defmodule Filtr do
           func.(value)
 
         validator ->
-          plugins = Helpers.type_plugin_map()[type]
           plugin_validate(plugins, value, type, validator, opts)
       end)
       |> process_validator_results()
