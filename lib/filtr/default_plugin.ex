@@ -177,28 +177,28 @@ defmodule Filtr.DefaultPlugin do
 
   # Date
   def validate(value, :date, {:min, min}, _opts) do
-    if Date.compare(value, min) in [:gt, :eq],
-      do: :ok,
-      else: {:error, "must be after or equal to #{min}"}
+    if Date.before?(value, min),
+      do: {:error, "must be after or equal to #{min}"},
+      else: :ok
   end
 
   def validate(value, :date, {:max, max}, _opts) do
-    if Date.compare(value, max) in [:lt, :eq],
-      do: :ok,
-      else: {:error, "must be before or equal to #{max}"}
+    if Date.after?(value, max),
+      do: {:error, "must be before or equal to #{max}"},
+      else: :ok
   end
 
   # DateTime
   def validate(value, :datetime, {:min, min}, _opts) do
-    if DateTime.compare(value, min) in [:gt, :eq],
-      do: :ok,
-      else: {:error, "must be after or equal to #{min}"}
+    if DateTime.before?(value, min),
+      do: {:error, "must be after or equal to #{min}"},
+      else: :ok
   end
 
   def validate(value, :datetime, {:max, max}, _opts) do
-    if DateTime.compare(value, max) in [:lt, :eq],
-      do: :ok,
-      else: {:error, "must be before or equal to #{max}"}
+    if DateTime.after?(value, max),
+      do: {:error, "must be before or equal to #{max}"},
+      else: :ok
   end
 
   # List
