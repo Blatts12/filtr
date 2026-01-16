@@ -193,9 +193,9 @@ defmodule Filtr do
         true -> acc
         :ok -> acc
         {:ok, _} -> acc
-        false -> acc ++ ["invalid value"]
-        :error -> acc ++ ["invalid value"]
-        {:error, error} -> acc ++ [error]
+        false -> ["invalid value" | acc]
+        :error -> ["invalid value" | acc]
+        {:error, error} -> [error | acc]
       end
     end)
   end
