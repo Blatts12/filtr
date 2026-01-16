@@ -6,7 +6,7 @@ defmodule Filtr do
   alias Filtr.Helpers
 
   @spec run(schema :: map(), params :: map()) :: map()
-  @spec run(schema :: map(), params :: map(), opts :: keyword()) :: map()
+  @spec run(schema :: map(), params :: map(), run_opts :: keyword()) :: map()
   def run(schema, params, run_opts \\ []) do
     run_opts = Keyword.put(run_opts, :plugin_map, Helpers.type_plugin_map())
 
@@ -116,10 +116,10 @@ defmodule Filtr do
   end
 
   defp process_value(key, value, type, opts) do
-    plugins = opts[:plugin_map][type] || []
+    plugin = opts[:plugin_map][type]
 
-    with {:ok, value} <- cast(key, value, type, opts, plugins),
-         {:ok, value} <- validate(key, value, type, opts, plugins) do
+    with {:ok, value} <- cast(key, value, type, opts, plugin),
+         {:ok, value} <- validate(key, value, type, opts, plugin) do
       {key, value}
     else
       error -> {key, error}
@@ -150,18 +150,18 @@ defmodule Filtr do
     end
   end
 
-  defp cast(key, value, type, opts, plugins) do
-    if is_nil(plugins) do
+  defp cast(key, value, type, opts, plugin) do
+    if is_nil(plugin) do
       process_error_with_mode(key, "unsupported type - #{type}", opts)
     else
-      case plugin_cast(plugins, value, type, opts) do
+      case plugin_cast(plugin, value, type, opts) do
         {:ok, value} -> {:ok, value}
         {:error, error} -> process_error_with_mode(key, error, opts)
       end
     end
   end
 
-  defp validate(key, value, type, opts, plugins) do
+  defp validate(key, value, type, opts, plugin) do
     validators = Keyword.get(opts, :validators, [])
 
     errors =
@@ -183,7 +183,7 @@ defmodule Filtr do
           func.(value)
 
         validator ->
-          plugin_validate(plugins, value, type, validator, opts)
+          plugin_validate(plugin, value, type, validator, opts)
       end)
       |> process_validator_results()
 
@@ -230,26 +230,22 @@ defmodule Filtr do
     end
   end
 
-  defp plugin_cast(plugins, value, type, opts) do
-    Enum.reduce_while(plugins, {:error, "missing cast for #{type}"}, fn plugin, result ->
-      case plugin.cast(value, type, opts) do
-        :not_handled -> {:cont, result}
-        cast_result -> {:halt, cast_result}
-      end
-    end)
+  defp plugin_cast(nil, _, type, _), do: {:error, "missing plugin for type #{type}"}
+
+  defp plugin_cast(plugin, value, type, opts) do
+    case plugin.cast(value, type, opts) do
+      :not_handled -> {:error, "missing cast for #{type}"}
+      result -> result
+    end
   end
 
-  defp plugin_validate(plugins, value, type, validator, opts) do
-    Enum.reduce_while(
-      plugins,
-      {:error, "missing validate for #{type}, #{inspect(validator)}"},
-      fn plugin, result ->
-        case plugin.validate(value, type, validator, opts) do
-          :not_handled -> {:cont, result}
-          validate_result -> {:halt, validate_result}
-        end
-      end
-    )
+  defp plugin_validate(nil, _, type, _, _), do: {:error, "missing plugin for type #{type}"}
+
+  defp plugin_validate(plugin, value, type, validator, opts) do
+    case plugin.validate(value, type, validator, opts) do
+      :not_handled -> {:error, "missing validate for #{type}, #{inspect(validator)}"}
+      result -> result
+    end
   end
 
   defp get_value(nil, _key), do: nil

@@ -655,7 +655,7 @@ The `types/0` callback declares which types your plugin handles. This is a requi
 def types, do: [:money, :currency, :price]
 ```
 
-Filtr uses this information to build a type-to-plugin mapping at runtime (cached in `:persistent_term` for performance). When processing a parameter, Filtr looks up which plugins support that type and tries them in order. The mapping is built on first use and cached for subsequent requests, giving near compile-time performance.
+Filtr uses this information to build a type-to-plugin mapping at runtime (cached in `:persistent_term` for performance). When processing a parameter, Filtr looks up which plugin handles that type. The mapping is built on first use and cached for subsequent requests, giving near compile-time performance.
 
 #### `cast/3`
 
@@ -685,7 +685,7 @@ end
 
 **Automatic fallthrough:**
 
-When you use `Filtr.Plugin`, a catch-all clause is automatically added to your plugin at compile time using `@before_compile`. This means you **don't need to manually add catch-all clauses** - if your function pattern doesn't match, Filtr automatically returns `:not_handled` and tries the next plugin in the chain.
+When you use `Filtr.Plugin`, a catch-all clause is automatically added to your plugin at compile time using `@before_compile`. This means you **don't need to manually add catch-all clauses** - if your function pattern doesn't match, Filtr automatically returns `:not_handled`.
 
 #### `validate/4`
 
@@ -719,16 +719,18 @@ end
 
 **Automatic fallthrough:**
 
-The validator parameter is a tuple like `{:min, 100}` or `{:in, ["USD", "EUR"]}`. Your plugin only needs to implement validators it supports - if a validator isn't recognized, the automatic catch-all clause returns `:not_handled` and Filtr tries the next plugin in the chain.
+The validator parameter is a tuple like `{:min, 100}` or `{:in, ["USD", "EUR"]}`. Your plugin only needs to implement validators it supports - if a validator isn't recognized, the automatic catch-all clause returns `:not_handled`.
 
 ### Plugin Priority
 
-Plugins are processed in reverse order, with later plugins taking precedence:
+Plugins are processed in reverse order, with later plugins completely overriding earlier ones for the same type:
 
 ```elixir
 config :filtr, plugins: [PluginA, PluginB]
 
-# PluginB is tried first, then PluginA, then DefaultPlugin
+# For any type that PluginB declares in types/0, PluginB handles it
+# For types only declared by PluginA, PluginA handles them
+# For types only in DefaultPlugin, DefaultPlugin handles them
 ```
 
 This allows you to override built-in types:
@@ -742,76 +744,23 @@ defmodule MyApp.CustomStringPlugin do
 
   @impl true
   def cast(value, :string, _opts) do
-    # Custom string handling
+    # Custom string handling - this completely replaces DefaultPlugin for :string
     {:ok, String.trim(value)}
   end
 
   @impl true
   def validate(value, :string, validator, opts) do
-    # Delegate to default string validators
+    # You can delegate to DefaultPlugin for validators you don't want to reimplement
     Filtr.DefaultPlugin.validate(value, :string, validator, opts)
   end
 end
 ```
 
-#### Cast and Validate Precedence
-
-When multiple plugins support the same type, Filtr tries them in reverse order (later plugins first). If a plugin doesn't implement `cast/3` or `validate/4` for a specific case, or if the function clause doesn't match, Filtr automatically falls through to the next plugin in the chain.
-
-**Example:**
-
-```elixir
-# config/config.exs
-config :filtr, plugins: [PluginA, PluginB, PluginC]
-
-# Filtr tries plugins in this order:
-# 1. PluginC
-# 2. PluginB
-# 3. PluginA
-# 4. DefaultPlugin (always last)
-```
-
-**How fallthrough works:**
-
-When you `use Filtr.Plugin`, a `@before_compile` hook automatically adds catch-all clauses to your plugin that return `:not_handled` for any unmatched function patterns. This means you only need to implement the specific cases you care about:
-
-```elixir
-defmodule MyPlugin do
-  use Filtr.Plugin
-
-  @impl true
-  def types, do: [:string]
-
-  @impl true
-  def cast(value, :string, _opts) when is_binary(value) do
-    {:ok, String.trim(value)}
-  end
-  # No need to add: def cast(_value, _type, _opts), do: :not_handled
-  # This is automatically added by @before_compile!
-
-  @impl true
-  # Only implement :min validator, others fall through
-  def validate(value, :string, {:min, min}, _opts) do
-    if String.length(value) >= min, do: :ok, else: {:error, "too short"}
-  end
-  # No need to add: def validate(_value, _type, _validator, _opts), do: :not_handled
-  # This is automatically added by @before_compile!
-end
-
-# When using :max validator, it falls through to DefaultPlugin
-param :name, :string, min: 2, max: 50
-# :min uses MyPlugin, :max uses DefaultPlugin
-```
-
-This allows you to:
-
-- Override specific validators while keeping others
-- Add new validators to existing types
-- Completely replace type handling when needed
+When multiple plugins declare the same type, the last plugin in the list takes full ownership of that type. If you want to reuse logic from `DefaultPlugin`, you can explicitly delegate to it as shown above.
 
 ### Default Plugin
 
-Filtr includes a built-in `DefaultPlugin` that provides support for common data types. This plugin is always included and runs last in the plugin chain, so custom plugins can override its behavior.
+Filtr includes a built-in `DefaultPlugin` that provides support for common data types. This plugin is always processed first, so custom plugins can override its behavior for any type.
 
 #### Supported types
 

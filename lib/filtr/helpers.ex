@@ -28,13 +28,13 @@ defmodule Filtr.Helpers do
   end
 
   @doc """
-  Returns a map of type atoms to their corresponding plugin modules.
+  Returns a map of type atoms to their corresponding plugin module.
 
   This function builds and caches a mapping of all supported types to the
-  plugins that handle them. The map is cached in `:persistent_term` for
+  plugin that handle them. The map is cached in `:persistent_term` for
   fast access across the application.
   """
-  @spec type_plugin_map() :: %{atom() => [module()]}
+  @spec type_plugin_map() :: %{atom() => module()}
   def type_plugin_map do
     case :persistent_term.get(@type_plugin_map_key, nil) do
       nil ->
@@ -48,14 +48,13 @@ defmodule Filtr.Helpers do
   end
 
   defp build_type_plugin_map do
-    plugins = Application.get_env(:filtr, :plugins) || []
-    all_plugins = [Filtr.DefaultPlugin | plugins]
+    plugins = Filtr.Plugin.all()
 
-    Enum.reduce(all_plugins, %{}, fn plugin, type_map ->
+    Enum.reduce(plugins, %{}, fn plugin, type_map ->
       types = plugin.types()
 
       Enum.reduce(types, type_map, fn type, type_map ->
-        Map.update(type_map, type, [plugin], fn p -> [plugin | p] end)
+        Map.put(type_map, type, plugin)
       end)
     end)
   end

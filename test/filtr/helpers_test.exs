@@ -46,14 +46,14 @@ defmodule Filtr.HelpersTest do
 
       type_map = Helpers.type_plugin_map()
 
-      assert type_map[:string] == [Filtr.DefaultPlugin]
-      assert type_map[:integer] == [Filtr.DefaultPlugin]
-      assert type_map[:float] == [Filtr.DefaultPlugin]
-      assert type_map[:boolean] == [Filtr.DefaultPlugin]
-      assert type_map[:time] == [Filtr.DefaultPlugin]
-      assert type_map[:date] == [Filtr.DefaultPlugin]
-      assert type_map[:datetime] == [Filtr.DefaultPlugin]
-      assert type_map[:list] == [Filtr.DefaultPlugin]
+      assert type_map[:string] == Filtr.DefaultPlugin
+      assert type_map[:integer] == Filtr.DefaultPlugin
+      assert type_map[:float] == Filtr.DefaultPlugin
+      assert type_map[:boolean] == Filtr.DefaultPlugin
+      assert type_map[:time] == Filtr.DefaultPlugin
+      assert type_map[:date] == Filtr.DefaultPlugin
+      assert type_map[:datetime] == Filtr.DefaultPlugin
+      assert type_map[:list] == Filtr.DefaultPlugin
 
       Application.put_env(:filtr, :plugins, original_plugins)
       :persistent_term.erase(:filtr_type_plugin_map)
@@ -75,11 +75,11 @@ defmodule Filtr.HelpersTest do
 
       type_map = Helpers.type_plugin_map()
 
-      assert type_map[:string] == [TestPluginOverride, Filtr.DefaultPlugin]
-      assert type_map[:custom_type] == [TestPluginOverride]
+      assert type_map[:string] == TestPluginOverride
+      assert type_map[:custom_type] == TestPluginOverride
 
-      assert type_map[:integer] == [Filtr.DefaultPlugin]
-      assert type_map[:boolean] == [Filtr.DefaultPlugin]
+      assert type_map[:integer] == Filtr.DefaultPlugin
+      assert type_map[:boolean] == Filtr.DefaultPlugin
 
       Application.put_env(:filtr, :plugins, original_plugins)
       :persistent_term.erase(:filtr_type_plugin_map)
@@ -101,7 +101,7 @@ defmodule Filtr.HelpersTest do
 
       type_map = Helpers.type_plugin_map()
 
-      assert type_map[:string] == [Filtr.DefaultPlugin]
+      assert type_map[:string] == Filtr.DefaultPlugin
 
       Application.put_env(:filtr, :plugins, original_plugins)
       :persistent_term.erase(:filtr_type_plugin_map)

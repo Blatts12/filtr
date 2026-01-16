@@ -116,10 +116,10 @@ defmodule Filtr.PluginTest do
 
       Application.delete_env(:filtr, :plugins)
 
-      assert Plugin.find_for_type(:string) == [Filtr.DefaultPlugin]
-      assert Plugin.find_for_type(:integer) == [Filtr.DefaultPlugin]
-      assert Plugin.find_for_type(:boolean) == [Filtr.DefaultPlugin]
-      assert Plugin.find_for_type(:date) == [Filtr.DefaultPlugin]
+      assert Plugin.find_for_type(:string) == Filtr.DefaultPlugin
+      assert Plugin.find_for_type(:integer) == Filtr.DefaultPlugin
+      assert Plugin.find_for_type(:boolean) == Filtr.DefaultPlugin
+      assert Plugin.find_for_type(:date) == Filtr.DefaultPlugin
 
       Application.put_env(:filtr, :plugins, original_plugins)
       :persistent_term.erase(:filtr_type_plugin_map)
@@ -139,8 +139,8 @@ defmodule Filtr.PluginTest do
 
       Application.put_env(:filtr, :plugins, [CustomTypePlugin])
 
-      assert Plugin.find_for_type(:custom) == [CustomTypePlugin]
-      assert Plugin.find_for_type(:special) == [CustomTypePlugin]
+      assert Plugin.find_for_type(:custom) == CustomTypePlugin
+      assert Plugin.find_for_type(:special) == CustomTypePlugin
 
       Application.put_env(:filtr, :plugins, original_plugins)
       :persistent_term.erase(:filtr_type_plugin_map)
@@ -180,7 +180,7 @@ defmodule Filtr.PluginTest do
       end
 
       Application.put_env(:filtr, :plugins, [FirstOverridePlugin, SecondOverridePlugin])
-      assert Plugin.find_for_type(:shared_type) == [SecondOverridePlugin, FirstOverridePlugin]
+      assert Plugin.find_for_type(:shared_type) == SecondOverridePlugin
       Application.put_env(:filtr, :plugins, original_plugins)
       :persistent_term.erase(:filtr_type_plugin_map)
     end
@@ -199,8 +199,8 @@ defmodule Filtr.PluginTest do
 
       Application.put_env(:filtr, :plugins, [StringOverridePlugin])
 
-      assert Plugin.find_for_type(:string) == [StringOverridePlugin, Filtr.DefaultPlugin]
-      assert Plugin.find_for_type(:integer) == [Filtr.DefaultPlugin]
+      assert Plugin.find_for_type(:string) == StringOverridePlugin
+      assert Plugin.find_for_type(:integer) == Filtr.DefaultPlugin
 
       Application.put_env(:filtr, :plugins, original_plugins)
       :persistent_term.erase(:filtr_type_plugin_map)

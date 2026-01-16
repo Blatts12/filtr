@@ -30,7 +30,6 @@ defmodule Filtr.Plugin do
   defmacro __before_compile__(_env) do
     quote do
       # Catch-all clause for cast/3 - returns :not_handled if no pattern matches
-      # This allows plugins to only implement the specific patterns they support
       def cast(_value, _type, _opts), do: :not_handled
 
       # Catch-all clause for validate/4 - returns :not_handled if no pattern matches
@@ -48,7 +47,7 @@ defmodule Filtr.Plugin do
   end
 
   @doc """
-  Finds all plugins that support the given type.
+  Finds plugin that support the given type.
   Returns nil if no plugins support the type.
   """
   @spec find_for_type(atom()) :: [module()] | nil
