@@ -78,8 +78,6 @@ defmodule Filtr do
   end
 
   defp process_map_values(values, nested_schema, run_opts) do
-    values = Enum.sort_by(values, fn {key, _value} -> key end)
-
     {result, valid?} =
       Enum.reduce(values, {[], true}, fn {_, value}, {acc, valid?} ->
         nested_result = run(nested_schema, value, run_opts)
