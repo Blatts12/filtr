@@ -6,6 +6,8 @@ defmodule Filtr.Helpers do
   @supported_error_modes [:fallback, :strict, :raise]
   @type_plugin_map_key :filtr_type_plugin_map
 
+  @default_error_mode Application.compile_env(:filtr, :error_mode) || :fallback
+
   @doc """
   Returns the default error mode configured for the application.
 
@@ -13,9 +15,7 @@ defmodule Filtr.Helpers do
   Falls back to `:fallback` if not configured.
   """
   @spec default_error_mode() :: atom()
-  def default_error_mode do
-    Application.get_env(:filtr, :error_mode) || :fallback
-  end
+  def default_error_mode, do: @default_error_mode
 
   @spec supported_error_mode?(mode :: atom()) :: boolean()
   def supported_error_mode?(mode) do
