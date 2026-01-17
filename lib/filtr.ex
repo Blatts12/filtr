@@ -126,7 +126,7 @@ defmodule Filtr do
     end
   end
 
-  defp cast(key, value, cast_fn, opts, _plugins) when is_function(cast_fn, 2) do
+  defp cast(key, value, cast_fn, opts, _plugin) when is_function(cast_fn, 2) do
     case cast_fn.(value, opts) do
       {:ok, value} -> {:ok, value}
       {:error, errors} when is_list(errors) -> process_errors_with_mode(key, errors, opts)
@@ -135,10 +135,10 @@ defmodule Filtr do
     end
   end
 
-  defp cast(_key, value, :__none__, _opts, _plugins), do: {:ok, value}
-  defp cast(_key, value, nil, _opts, _plugins), do: {:ok, value}
+  defp cast(_key, value, :__none__, _opts, _plugin), do: {:ok, value}
+  defp cast(_key, value, nil, _opts, _plugin), do: {:ok, value}
 
-  defp cast(key, nil, _type, opts, _plugins) do
+  defp cast(key, nil, _type, opts, _plugin) do
     validators = Keyword.get(opts, :validators, [])
     default = Keyword.get(validators, :default, :__none__)
     required? = Keyword.get(validators, :required, false)
@@ -150,14 +150,15 @@ defmodule Filtr do
     end
   end
 
+  defp cast(key, _, type, opts, nil) do
+    process_error_with_mode(key, "missing cast plugin for type #{type}", opts)
+  end
+
   defp cast(key, value, type, opts, plugin) do
-    if is_nil(plugin) do
-      process_error_with_mode(key, "unsupported type - #{type}", opts)
-    else
-      case plugin_cast(plugin, value, type, opts) do
-        {:ok, value} -> {:ok, value}
-        {:error, error} -> process_error_with_mode(key, error, opts)
-      end
+    case plugin.cast(value, type, opts) do
+      {:ok, value} -> {:ok, value}
+      {:error, error} -> process_error_with_mode(key, error, opts)
+      :not_handled -> {:error, "missing cast for #{type}"}
     end
   end
 
@@ -190,6 +191,15 @@ defmodule Filtr do
     case errors do
       [] -> {:ok, value}
       errors -> process_errors_with_mode(key, errors, opts)
+    end
+  end
+
+  defp plugin_validate(nil, _, type, _, _), do: {:error, "missing validation plugin for type #{type}"}
+
+  defp plugin_validate(plugin, value, type, validator, opts) do
+    case plugin.validate(value, type, validator, opts) do
+      :not_handled -> {:error, "missing validate for #{type}, #{inspect(validator)}"}
+      result -> result
     end
   end
 
@@ -227,24 +237,6 @@ defmodule Filtr do
       :fallback -> {:ok, default_value(default)}
       :raise -> raise "Invalid value for #{key}: #{Enum.join(Enum.uniq(errors), ", ")}"
       _ -> {:error, Enum.uniq(errors)}
-    end
-  end
-
-  defp plugin_cast(nil, _, type, _), do: {:error, "missing plugin for type #{type}"}
-
-  defp plugin_cast(plugin, value, type, opts) do
-    case plugin.cast(value, type, opts) do
-      :not_handled -> {:error, "missing cast for #{type}"}
-      result -> result
-    end
-  end
-
-  defp plugin_validate(nil, _, type, _, _), do: {:error, "missing plugin for type #{type}"}
-
-  defp plugin_validate(plugin, value, type, validator, opts) do
-    case plugin.validate(value, type, validator, opts) do
-      :not_handled -> {:error, "missing validate for #{type}, #{inspect(validator)}"}
-      result -> result
     end
   end
 
