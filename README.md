@@ -826,21 +826,4 @@ def cast(value, :upcase, opts) do
 end
 ```
 
-## TODO
-
-- [x] Logo
-- [ ] Docs in Code
-- [ ] Even More Tests
-- [ ] Benchmarks
-- [ ] CI/CD
-- [ ] Improve `README.md`
-- [ ] Introduce `AGENTS.md` or `CLAUDE.md` file
-- [ ] Debug logging
-- [x] `_valid?` field for strict mode to know if params are valid
-- [x] Move on from `try catch` to different approach for plugin chaining
-- [x] Extract errors function for strict mode
-- [x] Custom error modes for controllers (return 400 error on fail in controllers?)
-- [ ] Custom error modes for liveviews (redirect on fail?)
-- [x] Macro for nested schemas
-
 Distributed under the MIT License.
