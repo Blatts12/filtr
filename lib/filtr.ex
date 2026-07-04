@@ -1,7 +1,5 @@
 defmodule Filtr do
-  @moduledoc """
-    Main file
-  """
+  @moduledoc "Main file"
 
   alias Filtr.Helpers
 

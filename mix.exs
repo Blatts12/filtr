@@ -15,6 +15,7 @@ defmodule Filtr.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
+      aliases: aliases(),
       test_coverage: [tool: ExCoveralls]
     ]
   end
@@ -31,12 +32,16 @@ defmodule Filtr.MixProject do
     ]
   end
 
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_), do: ["lib"]
+
   def cli do
     [preferred_envs: [coveralls: :test, "coveralls.html": :test, "coveralls.detail": :test]]
   end
 
-  defp elixirc_paths(:test), do: ["lib", "test/support"]
-  defp elixirc_paths(_), do: ["lib"]
+  defp aliases do
+    [bench: ["run test/benchmark/run_all.exs"]]
+  end
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do
@@ -47,6 +52,7 @@ defmodule Filtr.MixProject do
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:styler, "~> 1.9", only: [:dev, :test], runtime: false},
+      {:benchee, "~> 1.3", only: :dev, runtime: false},
       {:floki, ">= 0.30.0", only: :test},
       {:lazy_html, ">= 0.1.0", only: :test},
       {:excoveralls, "~> 0.18", only: :test}

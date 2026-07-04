@@ -59,7 +59,7 @@ defmodule Filtr.HelpersTest do
       :persistent_term.erase(:filtr_type_plugin_map)
     end
 
-    test "later plugins are first on the list of pluhins" do
+    test "later plugins are first on the list of plugins" do
       original_plugins = Application.get_env(:filtr, :plugins)
       :persistent_term.erase(:filtr_type_plugin_map)
 
