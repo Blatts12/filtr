@@ -117,17 +117,26 @@ defmodule Filtr.Helpers do
     Map.put(schema, key, parse_param_opts(opts))
   end
 
-  def render_ast_to_schema({:__block__, [], items}, schema) do
-    Enum.reduce(items, schema, fn item, schema ->
-      render_ast_to_schema(item, schema)
+  def render_ast_to_schema({:__block__, _, items}, schema) when is_list(items) do
+    Enum.reduce(items, schema, fn item, acc_schema ->
+      render_ast_to_schema(item, acc_schema)
     end)
   end
+
+  def render_ast_to_schema(nil, schema), do: schema
 
   def render_ast_to_schema(ast, _schema) do
     raise ArgumentError, """
     Invalid param definition in nested schema.
 
-    Expected: param :name, :type or param :name do ... end
+    Expected:
+    - `param :name, :type`
+    - `param :name, :type, opts`
+    - `param :name do ... end`
+    - `param :name, opts do ... end`
+    - `param :name, :list do ... end`
+    - `param :name, :list, opts do ... end`
+
     Got: `#{Macro.to_string(ast)}`
 
     Only `param` macro calls are allowed inside nested param blocks.
