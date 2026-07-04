@@ -26,7 +26,7 @@ Add `filtr` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:filtr, "~> 0.4.0"}
+    {:filtr, "~> 1.0"}
   ]
 end
 ```
