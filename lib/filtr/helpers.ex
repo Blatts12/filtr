@@ -47,7 +47,8 @@ defmodule Filtr.Helpers do
     end
   end
 
-  defp build_type_plugin_map do
+  @spec build_type_plugin_map() :: term()
+  def build_type_plugin_map do
     plugins = Filtr.Plugin.all()
 
     Enum.reduce(plugins, %{}, fn plugin, type_map ->

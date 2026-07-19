@@ -6,8 +6,8 @@ Code.require_file("../bench.exs", __DIR__)
 params = %{"value" => "true"}
 
 %{
-  "cast only" => [type: :boolean],
-  "in" => [type: :boolean, validators: [in: [true, false]]]
+  "cast only" => %{type: :boolean},
+  "in" => %{type: :boolean, validators: [in: [true, false]]}
 }
 |> Map.new(fn {name, opts} ->
   schema = %{value: opts}
