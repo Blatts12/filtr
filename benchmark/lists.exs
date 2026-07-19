@@ -4,8 +4,8 @@
 Code.require_file("bench.exs", __DIR__)
 
 schema = fn depth ->
-  Enum.reduce(1..depth, %{value: %{type: :integer, validators: [min: 0]}}, fn _, acc ->
-    %{items: %{type: {:list, acc}}}
+  Enum.reduce(1..depth, %{value: [type: :integer, validators: [min: 0]]}, fn _, acc ->
+    %{items: [type: {:list, acc}]}
   end)
 end
 

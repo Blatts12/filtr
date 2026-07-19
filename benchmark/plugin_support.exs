@@ -15,10 +15,10 @@ for n <- 1..10 do
     def types, do: [@custom_type]
 
     @impl true
-    def cast(value, @custom_type, _ctx), do: {:ok, value}
+    def cast(value, @custom_type, _opts), do: {:ok, value}
 
     @impl true
-    def validate(_value, @custom_type, _validator, _ctx), do: :ok
+    def validate(_value, @custom_type, _validator, _opts), do: :ok
   end
 end
 

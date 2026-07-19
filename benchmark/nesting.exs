@@ -4,8 +4,8 @@
 Code.require_file("bench.exs", __DIR__)
 
 schema = fn depth ->
-  Enum.reduce(1..depth, %{leaf: %{type: :string, validators: [min: 1]}}, fn _, acc ->
-    %{child: %{type: acc}}
+  Enum.reduce(1..depth, %{leaf: [type: :string, validators: [min: 1]]}, fn _, acc ->
+    %{child: acc}
   end)
 end
 

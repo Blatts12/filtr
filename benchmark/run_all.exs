@@ -1,17 +1,17 @@
-# Runs every benchmark under test/benchmark and writes the combined output to
-# test/benchmark/results.md.
-# mix run test/benchmark/run_all.exs            # run everything
-# mix run test/benchmark/run_all.exs list date  # only suites matching "list" or "date"
+# Runs every benchmark under benchmark and writes the combined output to
+# benchmark/results.md.
+# mix run benchmark/run_all.exs            # run everything
+# mix run benchmark/run_all.exs list date  # only suites matching "list" or "date"
 
 bench_dir = __DIR__
 
 # Benchee options shared by every suite - the single place to tune the whole run.
 # Edit the defaults here, or override any of them per run, e.g. `BENCH_TIME=1 mix bench`.
-# They're handed to each suite through env vars that test/benchmark/bench.exs reads.
+# They're handed to each suite through env vars that benchmark/bench.exs reads.
 benchee_config = [
-  warmup: System.get_env("BENCH_WARMUP", "2"),
-  time: System.get_env("BENCH_TIME", "10"),
-  memory_time: System.get_env("BENCH_MEMORY_TIME", "10")
+  warmup: System.get_env("BENCH_WARMUP", "0"),
+  time: System.get_env("BENCH_TIME", "1"),
+  memory_time: System.get_env("BENCH_MEMORY_TIME", "1")
 ]
 
 bench_env =

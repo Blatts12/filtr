@@ -5,27 +5,25 @@
 Code.require_file("bench.exs", __DIR__)
 
 schema = %{
-  name: %{type: :string, validators: [min: 1, max: 100]},
-  age: %{type: :integer, validators: [min: 0, max: 120]},
-  score: %{type: :float, validators: [min: 0.0]},
-  active: %{type: :boolean},
-  born_on: %{type: :date, validators: [min: ~D[1900-01-01]]},
-  last_seen: %{type: :datetime},
-  tags: %{type: {:list, :string}, validators: [min: 1]},
+  name: [type: :string, validators: [min: 1, max: 100]],
+  age: [type: :integer, validators: [min: 0, max: 120]],
+  score: [type: :float, validators: [min: 0.0]],
+  active: [type: :boolean],
+  born_on: [type: :date, validators: [min: ~D[1900-01-01]]],
+  last_seen: [type: :datetime],
+  tags: [type: {:list, :string}, validators: [min: 1]],
   address: %{
-    type: %{
-      city: %{type: :string, required: true},
-      zip: %{type: :string}
-    }
+    city: [type: :string, validators: [required: true]],
+    zip: [type: :string]
   },
-  items: %{
+  items: [
     type:
       {:list,
        %{
-         sku: %{type: :string, required: true},
-         quantity: %{type: :integer, validators: [min: 1]}
+         sku: [type: :string, validators: [required: true]],
+         quantity: [type: :integer, validators: [min: 1]]
        }}
-  }
+  ]
 }
 
 params = %{

@@ -6,9 +6,9 @@ defmodule Bench do
 
   # {env var, Benchee option, default}
   @env_opts [
-    {"BENCH_WARMUP", :warmup, 1},
-    {"BENCH_TIME", :time, 5},
-    {"BENCH_MEMORY_TIME", :memory_time, 5},
+    {"BENCH_WARMUP", :warmup, 0},
+    {"BENCH_TIME", :time, 1},
+    {"BENCH_MEMORY_TIME", :memory_time, 1},
     {"BENCH_PARALLEL", :parallel, 2}
   ]
 
