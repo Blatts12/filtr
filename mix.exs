@@ -40,7 +40,7 @@ defmodule Filtr.MixProject do
   end
 
   defp aliases do
-    [bench: ["run test/benchmark/run_all.exs"]]
+    [bench: ["run benchmark/run_all.exs"]]
   end
 
   # Run "mix help deps" to learn about dependencies.

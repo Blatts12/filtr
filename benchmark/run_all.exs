@@ -30,7 +30,8 @@ benchmarks = [
   {"Nested maps", "nesting.exs"},
   {"Lists of nested schemas", "lists.exs"},
   {"All types at once", "all_types.exs"},
-  {"Plugins", "plugins.exs"}
+  {"Plugin dispatch", "plugins.exs"},
+  {"Plugin registration", "plugin_registration.exs"}
 ]
 
 filters = System.argv()

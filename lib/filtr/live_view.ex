@@ -36,7 +36,7 @@ if Code.ensure_loaded?(Phoenix.LiveView) do
       nested_schema = Helpers.render_ast_to_schema(nested_block)
 
       quote do
-        @filtr_params {unquote(name), unquote(Macro.escape(nested_schema))}
+        @filtr_params {unquote(name), %{type: unquote(Macro.escape(nested_schema))}}
       end
     end
 
@@ -56,13 +56,13 @@ if Code.ensure_loaded?(Phoenix.LiveView) do
       nested_schema = Helpers.render_ast_to_schema(nested_block)
 
       quote do
-        @filtr_params {unquote(name), [type: {:list, unquote(Macro.escape(nested_schema))}]}
+        @filtr_params {unquote(name), %{type: {:list, unquote(Macro.escape(nested_schema))}}}
       end
     end
 
     defmacro param(name, type, opts) do
       quote do
-        @filtr_params {unquote(name), Keyword.put(unquote(opts), :type, unquote(type))}
+        @filtr_params {unquote(name), unquote(opts) |> Keyword.put(:type, unquote(type)) |> Helpers.parse_param_opts()}
       end
     end
 
@@ -80,7 +80,6 @@ if Code.ensure_loaded?(Phoenix.LiveView) do
             {
               key,
               if(is_map(opts_or_schema),
-                # If opts_or_schema is a map, it's a nested schema
                 do: opts_or_schema,
                 else: Helpers.parse_param_opts(opts_or_schema)
               )

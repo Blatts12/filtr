@@ -31,10 +31,12 @@ defmodule Filtr.Controller do
       end
   """
 
+  alias Filtr.Helpers
+
   # credo:disable-for-this-file Credo.Check.Design.AliasUsage
 
   defmacro __using__(opts \\ []) do
-    error_mode = Keyword.get(opts, :error_mode) || Filtr.Helpers.default_error_mode()
+    error_mode = Keyword.get(opts, :error_mode) || Helpers.default_error_mode()
 
     supported_error_mode? =
       case error_mode do
@@ -59,12 +61,12 @@ defmodule Filtr.Controller do
           true
 
         error_mode ->
-          Filtr.Helpers.supported_error_mode?(error_mode)
+          Helpers.supported_error_mode?(error_mode)
       end
 
     if not supported_error_mode? do
       raise ArgumentError,
-            "error_mode must be one of: #{inspect(Filtr.Helpers.supported_error_modes())} or function with MFA, function capture or anonymous function with arity 2"
+            "error_mode must be one of: #{inspect(Helpers.supported_error_modes())} or function with MFA, function capture or anonymous function with arity 2"
     end
 
     quote do
@@ -80,10 +82,10 @@ defmodule Filtr.Controller do
   end
 
   defmacro param(name, do: nested_block) do
-    nested_schema = Filtr.Helpers.render_ast_to_schema(nested_block)
+    nested_schema = Helpers.render_ast_to_schema(nested_block)
 
     quote do
-      @filtr_param_definitions {unquote(name), unquote(Macro.escape(nested_schema))}
+      @filtr_param_definitions {unquote(name), %{type: unquote(Macro.escape(nested_schema))}}
     end
   end
 
@@ -100,16 +102,19 @@ defmodule Filtr.Controller do
   defmacro param(name, type, opts \\ [])
 
   defmacro param(name, :list, do: nested_block) do
-    nested_schema = Filtr.Helpers.render_ast_to_schema(nested_block)
+    nested_schema = Helpers.render_ast_to_schema(nested_block)
 
     quote do
-      @filtr_param_definitions {unquote(name), [type: {:list, unquote(Macro.escape(nested_schema))}]}
+      @filtr_param_definitions {unquote(name), %{type: {:list, unquote(Macro.escape(nested_schema))}}}
     end
   end
 
   defmacro param(name, type, opts) when is_list(opts) do
     quote do
-      @filtr_param_definitions {unquote(name), Keyword.put(unquote(opts), :type, unquote(type))}
+      @filtr_param_definitions {unquote(name),
+                                unquote(opts)
+                                |> Keyword.put(:type, unquote(type))
+                                |> Helpers.parse_param_opts()}
     end
   end
 
@@ -123,10 +128,9 @@ defmodule Filtr.Controller do
           Map.new(param_definitions, fn {key, opts_or_schema} ->
             {
               key,
-              # If opts_or_schema is a map, it's a nested schema
               if(is_map(opts_or_schema),
                 do: opts_or_schema,
-                else: Filtr.Helpers.parse_param_opts(opts_or_schema)
+                else: Helpers.parse_param_opts(opts_or_schema)
               )
             }
           end)
@@ -140,7 +144,7 @@ defmodule Filtr.Controller do
 
   defmacro __before_compile__(env) do
     function_params = Module.get_attribute(env.module, :filtr_function_params, [])
-    error_mode = Module.get_attribute(env.module, :filtr_error_mode) || Filtr.Helpers.default_error_mode()
+    error_mode = Module.get_attribute(env.module, :filtr_error_mode) || Helpers.default_error_mode()
 
     wrappers =
       for {function_name, schema} <- function_params do

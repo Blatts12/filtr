@@ -3,7 +3,7 @@ defmodule FiltrTest do
 
   describe "run/2 and run/3 basic behavior" do
     test "processes single field schema" do
-      schema = %{name: [type: :string]}
+      schema = %{name: %{type: :string}}
       params = %{"name" => "John"}
 
       result = Filtr.run(schema, params)
@@ -12,8 +12,8 @@ defmodule FiltrTest do
 
     test "processes multiple fields in schema" do
       schema = %{
-        name: [type: :string],
-        age: [type: :integer]
+        name: %{type: :string},
+        age: %{type: :integer}
       }
 
       params = %{name: "John", age: "25"}
@@ -24,7 +24,7 @@ defmodule FiltrTest do
     end
 
     test "handles missing params as nil" do
-      schema = %{name: [type: :string]}
+      schema = %{name: %{type: :string}}
       params = %{}
 
       result = Filtr.run(schema, params)
@@ -36,7 +36,9 @@ defmodule FiltrTest do
     test "processes nested map schema" do
       schema = %{
         user: %{
-          name: [type: :string]
+          type: %{
+            name: %{type: :string}
+          }
         }
       }
 
@@ -53,7 +55,9 @@ defmodule FiltrTest do
     test "passes run_opts to nested schemas" do
       schema = %{
         user: %{
-          name: [type: :string, validators: [required: true]]
+          type: %{
+            name: %{type: :string, required: true, validators: []}
+          }
         }
       }
 
@@ -66,7 +70,9 @@ defmodule FiltrTest do
     test "allows nested schema to override run_opts" do
       schema = %{
         user: %{
-          name: [type: :string, validators: [required: true], error_mode: :fallback]
+          type: %{
+            name: %{type: :string, required: true, validators: [], error_mode: :fallback}
+          }
         }
       }
 
@@ -79,7 +85,7 @@ defmodule FiltrTest do
 
   describe "list handling" do
     test "processes list of simple types" do
-      schema = %{tags: [type: {:list, :string}]}
+      schema = %{tags: %{type: {:list, :string}}}
       params = %{"tags" => ["elixir", "phoenix"]}
 
       result = Filtr.run(schema, params)
@@ -87,7 +93,7 @@ defmodule FiltrTest do
     end
 
     test "processes list with type casting" do
-      schema = %{scores: [type: {:list, :integer}]}
+      schema = %{scores: %{type: {:list, :integer}}}
       params = %{"scores" => ["10", "20", "30"]}
 
       result = Filtr.run(schema, params)
@@ -95,7 +101,7 @@ defmodule FiltrTest do
     end
 
     test "handles empty list" do
-      schema = %{tags: [type: {:list, :string}]}
+      schema = %{tags: %{type: {:list, :string}}}
       params = %{"tags" => []}
 
       result = Filtr.run(schema, params)
@@ -103,7 +109,7 @@ defmodule FiltrTest do
     end
 
     test "processes each list item with validators" do
-      schema = %{tags: [type: {:list, :string}, validators: [min: 2]]}
+      schema = %{tags: %{type: {:list, :string}, validators: [min: 2]}}
       params = %{"tags" => ["elixir", "a", "phoenix"]}
 
       result = Filtr.run(schema, params, error_mode: :strict)
@@ -112,15 +118,15 @@ defmodule FiltrTest do
 
     test "processes list of nested map schemas" do
       schema = %{
-        items: [
+        items: %{
           type: {
             :list,
             %{
-              name: [type: :string],
-              quantity: [type: :integer]
+              name: %{type: :string},
+              quantity: %{type: :integer}
             }
           }
-        ]
+        }
       }
 
       params = %{
@@ -141,7 +147,7 @@ defmodule FiltrTest do
 
   describe "error mode: fallback" do
     test "returns default value on cast error" do
-      schema = %{age: [type: :integer, validators: [default: 0]]}
+      schema = %{age: %{type: :integer, default: 0, validators: []}}
       params = %{"age" => "invalid"}
 
       result = Filtr.run(schema, params, error_mode: :fallback)
@@ -149,7 +155,7 @@ defmodule FiltrTest do
     end
 
     test "returns nil on cast error without default" do
-      schema = %{age: [type: :integer]}
+      schema = %{age: %{type: :integer}}
       params = %{"age" => "invalid"}
 
       result = Filtr.run(schema, params, error_mode: :fallback)
@@ -157,7 +163,7 @@ defmodule FiltrTest do
     end
 
     test "handles required field missing with default" do
-      schema = %{name: [type: :string, validators: [required: true, default: "Guest"]]}
+      schema = %{name: %{type: :string, required: true, default: "Guest", validators: []}}
       params = %{}
 
       result = Filtr.run(schema, params, error_mode: :fallback)
@@ -165,7 +171,7 @@ defmodule FiltrTest do
     end
 
     test "handles required field missing without default" do
-      schema = %{name: [type: :string, validators: [required: true]]}
+      schema = %{name: %{type: :string, required: true, validators: []}}
       params = %{}
 
       result = Filtr.run(schema, params, error_mode: :fallback)
@@ -173,7 +179,7 @@ defmodule FiltrTest do
     end
 
     test "handles validation failure with default" do
-      schema = %{age: [type: :integer, validators: [min: 18, default: 18]]}
+      schema = %{age: %{type: :integer, default: 18, validators: [min: 18]}}
       params = %{"age" => "10"}
 
       result = Filtr.run(schema, params, error_mode: :fallback)
@@ -183,7 +189,7 @@ defmodule FiltrTest do
 
   describe "error mode: strict" do
     test "returns error tuple on cast error" do
-      schema = %{age: [type: :integer]}
+      schema = %{age: %{type: :integer}}
       params = %{"age" => "invalid"}
 
       result = Filtr.run(schema, params, error_mode: :strict)
@@ -191,7 +197,7 @@ defmodule FiltrTest do
     end
 
     test "returns error on required field missing" do
-      schema = %{name: [type: :string, validators: [required: true]]}
+      schema = %{name: %{type: :string, required: true, validators: []}}
       params = %{}
 
       result = Filtr.run(schema, params, error_mode: :strict)
@@ -199,7 +205,7 @@ defmodule FiltrTest do
     end
 
     test "returns valid value on success" do
-      schema = %{name: [type: :string]}
+      schema = %{name: %{type: :string}}
       params = %{"name" => "John"}
 
       result = Filtr.run(schema, params, error_mode: :strict)
@@ -207,7 +213,7 @@ defmodule FiltrTest do
     end
 
     test "returns validation errors" do
-      schema = %{age: [type: :integer, validators: [min: 18]]}
+      schema = %{age: %{type: :integer, validators: [min: 18]}}
       params = %{"age" => "10"}
 
       result = Filtr.run(schema, params, error_mode: :strict)
@@ -215,7 +221,7 @@ defmodule FiltrTest do
     end
 
     test "uses default error mode from config when not specified" do
-      schema = %{age: [type: :integer, validators: [min: 18]]}
+      schema = %{age: %{type: :integer, validators: [min: 18]}}
       params = %{"age" => "10"}
 
       result = Filtr.run(schema, params)
@@ -225,7 +231,7 @@ defmodule FiltrTest do
 
   describe "error mode: raise" do
     test "raises on cast error" do
-      schema = %{age: [type: :integer]}
+      schema = %{age: %{type: :integer}}
       params = %{"age" => "invalid"}
 
       assert_raise RuntimeError, ~r/Invalid value for age/, fn ->
@@ -234,7 +240,7 @@ defmodule FiltrTest do
     end
 
     test "raises on required field missing" do
-      schema = %{name: [type: :string, validators: [required: true]]}
+      schema = %{name: %{type: :string, required: true, validators: []}}
       params = %{}
 
       assert_raise RuntimeError, ~r/Invalid value for name: required/, fn ->
@@ -243,7 +249,7 @@ defmodule FiltrTest do
     end
 
     test "returns valid value on success" do
-      schema = %{name: [type: :string]}
+      schema = %{name: %{type: :string}}
       params = %{"name" => "John"}
 
       result = Filtr.run(schema, params, error_mode: :raise)
@@ -251,7 +257,7 @@ defmodule FiltrTest do
     end
 
     test "raises on validation failure" do
-      schema = %{age: [type: :integer, validators: [min: 18]]}
+      schema = %{age: %{type: :integer, validators: [min: 18]}}
       params = %{"age" => "10"}
 
       assert_raise RuntimeError, ~r/Invalid value for age/, fn ->
@@ -262,7 +268,7 @@ defmodule FiltrTest do
 
   describe "required fields and defaults" do
     test "applies static default value when param is missing" do
-      schema = %{page: [type: :integer, validators: [default: 1]]}
+      schema = %{page: %{type: :integer, default: 1, validators: []}}
       params = %{}
 
       result = Filtr.run(schema, params)
@@ -271,10 +277,11 @@ defmodule FiltrTest do
 
     test "applies function default when param is missing" do
       schema = %{
-        timestamp: [
+        timestamp: %{
           type: :integer,
-          validators: [default: fn -> 12_345 end]
-        ]
+          default: fn -> 12_345 end,
+          validators: []
+        }
       }
 
       params = %{}
@@ -284,7 +291,7 @@ defmodule FiltrTest do
     end
 
     test "does not apply default when param is provided" do
-      schema = %{page: [type: :integer, validators: [default: 1]]}
+      schema = %{page: %{type: :integer, default: 1, validators: []}}
       params = %{"page" => "2"}
 
       result = Filtr.run(schema, params)
@@ -292,7 +299,7 @@ defmodule FiltrTest do
     end
 
     test "required field with nil value fails in strict mode" do
-      schema = %{name: [type: :string, validators: [required: true]]}
+      schema = %{name: %{type: :string, required: true, validators: []}}
       params = %{"name" => nil}
 
       result = Filtr.run(schema, params, error_mode: :strict)
@@ -300,7 +307,7 @@ defmodule FiltrTest do
     end
 
     test "required field with value succeeds" do
-      schema = %{name: [type: :string, validators: [required: true]]}
+      schema = %{name: %{type: :string, required: true, validators: []}}
       params = %{"name" => "John"}
 
       result = Filtr.run(schema, params)
@@ -312,7 +319,7 @@ defmodule FiltrTest do
     test "processes custom cast function returning {:ok, value}" do
       custom_cast = fn value, _opts -> {:ok, String.upcase(value)} end
 
-      schema = %{name: [type: custom_cast]}
+      schema = %{name: %{type: custom_cast}}
       params = %{"name" => "john"}
 
       result = Filtr.run(schema, params)
@@ -322,7 +329,7 @@ defmodule FiltrTest do
     test "processes custom cast function returning plain value" do
       custom_cast = fn value, _opts -> String.upcase(value) end
 
-      schema = %{name: [type: custom_cast]}
+      schema = %{name: %{type: custom_cast}}
       params = %{"name" => "john"}
 
       result = Filtr.run(schema, params)
@@ -332,7 +339,7 @@ defmodule FiltrTest do
     test "handles custom cast function error in strict mode" do
       custom_cast = fn _value, _opts -> {:error, "custom error"} end
 
-      schema = %{name: [type: custom_cast]}
+      schema = %{name: %{type: custom_cast}}
       params = %{"name" => "john"}
 
       result = Filtr.run(schema, params, error_mode: :strict)
@@ -342,7 +349,7 @@ defmodule FiltrTest do
     test "handles custom cast function returning error list" do
       custom_cast = fn _value, _opts -> {:error, ["error1", "error2"]} end
 
-      schema = %{name: [type: custom_cast]}
+      schema = %{name: %{type: custom_cast}}
       params = %{"name" => "john"}
 
       result = Filtr.run(schema, params, error_mode: :strict)
@@ -354,7 +361,7 @@ defmodule FiltrTest do
     test "processes custom validation function returning true" do
       custom_validator = fn value -> String.length(value) > 2 end
 
-      schema = %{name: [type: :string, validators: [custom: custom_validator]]}
+      schema = %{name: %{type: :string, validators: [custom: custom_validator]}}
       params = %{"name" => "john"}
 
       result = Filtr.run(schema, params)
@@ -364,7 +371,7 @@ defmodule FiltrTest do
     test "processes custom validation function returning :ok" do
       custom_validator = fn value -> if String.length(value) > 2, do: :ok, else: :error end
 
-      schema = %{name: [type: :string, validators: [custom: custom_validator]]}
+      schema = %{name: %{type: :string, validators: [custom: custom_validator]}}
       params = %{"name" => "john"}
 
       result = Filtr.run(schema, params)
@@ -376,7 +383,7 @@ defmodule FiltrTest do
         if String.length(value) > 2, do: {:ok, value}, else: {:error, "too short"}
       end
 
-      schema = %{name: [type: :string, validators: [custom: custom_validator]]}
+      schema = %{name: %{type: :string, validators: [custom: custom_validator]}}
       params = %{"name" => "john"}
 
       result = Filtr.run(schema, params)
@@ -386,7 +393,7 @@ defmodule FiltrTest do
     test "handles custom validation function returning false error value" do
       custom_validator = fn value -> String.length(value) > 10 end
 
-      schema = %{name: [type: :string, validators: [custom: custom_validator]]}
+      schema = %{name: %{type: :string, validators: [custom: custom_validator]}}
       params = %{"name" => "john"}
 
       result = Filtr.run(schema, params, error_mode: :strict)
@@ -396,7 +403,7 @@ defmodule FiltrTest do
     test "handles custom validation function returning :error error value" do
       custom_validator = fn value -> if String.length(value) > 10, do: :ok, else: :error end
 
-      schema = %{name: [type: :string, validators: [custom: custom_validator]]}
+      schema = %{name: %{type: :string, validators: [custom: custom_validator]}}
       params = %{"name" => "john"}
 
       result = Filtr.run(schema, params, error_mode: :strict)
@@ -412,7 +419,7 @@ defmodule FiltrTest do
         end
       end
 
-      schema = %{name: [type: :string, validators: [custom: custom_validator]]}
+      schema = %{name: %{type: :string, validators: [custom: custom_validator]}}
       params = %{"name" => "john"}
 
       result = Filtr.run(schema, params, error_mode: :strict)
@@ -425,14 +432,14 @@ defmodule FiltrTest do
       validator3 = fn _value -> {:error, "invalid format"} end
 
       schema = %{
-        name: [
+        name: %{
           type: :string,
           validators: [
             custom: validator1,
             custom: validator2,
             custom: validator3
           ]
-        ]
+        }
       }
 
       params = %{"name" => "ab"}
@@ -444,7 +451,7 @@ defmodule FiltrTest do
 
   describe "type passthrough" do
     test "processes :__none__ type as passthrough" do
-      schema = %{data: [type: :__none__]}
+      schema = %{data: %{type: :__none__}}
       params = %{"data" => %{"key" => "value"}}
 
       result = Filtr.run(schema, params)
@@ -452,7 +459,7 @@ defmodule FiltrTest do
     end
 
     test "processes nil type as passthrough" do
-      schema = %{data: [type: nil]}
+      schema = %{data: %{type: nil}}
       params = %{"data" => "anything"}
 
       result = Filtr.run(schema, params)
@@ -462,7 +469,7 @@ defmodule FiltrTest do
 
   describe "unsupported types" do
     test "returns error for unsupported type in strict mode" do
-      schema = %{data: [type: :unsupported_type]}
+      schema = %{data: %{type: :unsupported_type}}
       params = %{"data" => "value"}
 
       result = Filtr.run(schema, params, error_mode: :strict)
@@ -471,7 +478,7 @@ defmodule FiltrTest do
     end
 
     test "returns nil for unsupported type in fallback mode" do
-      schema = %{data: [type: :unsupported_type]}
+      schema = %{data: %{type: :unsupported_type}}
       params = %{"data" => "value"}
 
       result = Filtr.run(schema, params, error_mode: :fallback)
@@ -479,7 +486,7 @@ defmodule FiltrTest do
     end
 
     test "raises for unsupported type in raise mode" do
-      schema = %{data: [type: :unsupported_type]}
+      schema = %{data: %{type: :unsupported_type}}
       params = %{"data" => "value"}
 
       assert_raise RuntimeError, ~r/unsupported_type/, fn ->
@@ -491,7 +498,7 @@ defmodule FiltrTest do
   describe "validator processing" do
     test "skips :default and :required in validation phase" do
       schema = %{
-        name: [type: :string, validators: [required: true, default: "test", min: 2]]
+        name: %{type: :string, required: true, default: "test", validators: [min: 2]}
       }
 
       params = %{"name" => "John"}
@@ -502,7 +509,7 @@ defmodule FiltrTest do
 
     test "processes multiple validators" do
       schema = %{
-        username: [type: :string, validators: [min: 3, max: 20]]
+        username: %{type: :string, validators: [min: 3, max: 20]}
       }
 
       params = %{"username" => "john_doe"}
@@ -513,7 +520,7 @@ defmodule FiltrTest do
 
     test "collects multiple validation errors in strict mode" do
       schema = %{
-        age: [type: :integer, validators: [min: 18, max: 10]]
+        age: %{type: :integer, validators: [min: 18, max: 10]}
       }
 
       params = %{"age" => "15"}
@@ -526,7 +533,7 @@ defmodule FiltrTest do
   describe "opts merging" do
     test "schema opts override run_opts for individual fields" do
       schema = %{
-        name: [type: :string, validators: [required: true], error_mode: :fallback]
+        name: %{type: :string, required: true, validators: [], error_mode: :fallback}
       }
 
       params = %{}
@@ -538,7 +545,7 @@ defmodule FiltrTest do
 
     test "run_opts are used when field opts don't specify error_mode" do
       schema = %{
-        name: [type: :string, validators: [required: true]]
+        name: %{type: :string, required: true, validators: []}
       }
 
       params = %{}
@@ -551,9 +558,9 @@ defmodule FiltrTest do
   describe "error mode per field" do
     test "allows mixing error modes across multiple fields" do
       schema = %{
-        email: [type: :string, validators: [required: true, pattern: ~r/@/], error_mode: :strict],
-        age: [type: :integer, validators: [min: 18, default: 18], error_mode: :fallback],
-        id: [type: :integer, validators: [required: true], error_mode: :raise]
+        email: %{type: :string, required: true, validators: [pattern: ~r/@/], error_mode: :strict},
+        age: %{type: :integer, default: 18, validators: [min: 18], error_mode: :fallback},
+        id: %{type: :integer, required: true, validators: [], error_mode: :raise}
       }
 
       params = %{"email" => "invalid", "age" => "10"}
@@ -566,8 +573,8 @@ defmodule FiltrTest do
 
     test "strict mode field returns error tuple while fallback field returns default" do
       schema = %{
-        email: [type: :string, validators: [required: true], error_mode: :strict],
-        optional_field: [type: :string, validators: [default: "default"], error_mode: :fallback]
+        email: %{type: :string, required: true, validators: [], error_mode: :strict},
+        optional_field: %{type: :string, default: "default", validators: [], error_mode: :fallback}
       }
 
       params = %{}
@@ -579,8 +586,8 @@ defmodule FiltrTest do
 
     test "fallback field ignores global strict mode" do
       schema = %{
-        critical: [type: :integer, validators: [required: true]],
-        optional: [type: :integer, validators: [default: 0], error_mode: :fallback]
+        critical: %{type: :integer, required: true, validators: []},
+        optional: %{type: :integer, default: 0, validators: [], error_mode: :fallback}
       }
 
       params = %{"critical" => "10", "optional" => "invalid"}
@@ -592,8 +599,8 @@ defmodule FiltrTest do
 
     test "strict field overrides global fallback mode" do
       schema = %{
-        critical: [type: :integer, validators: [required: true], error_mode: :strict],
-        optional: [type: :string, validators: [default: "default"]]
+        critical: %{type: :integer, required: true, validators: [], error_mode: :strict},
+        optional: %{type: :string, default: "default", validators: []}
       }
 
       params = %{"optional" => "value"}
@@ -605,8 +612,8 @@ defmodule FiltrTest do
 
     test "raise field overrides global strict mode" do
       schema = %{
-        critical: [type: :integer, validators: [required: true], error_mode: :raise],
-        optional: [type: :string, validators: [default: "default"]]
+        critical: %{type: :integer, required: true, validators: [], error_mode: :raise},
+        optional: %{type: :string, default: "default", validators: []}
       }
 
       params = %{"optional" => "value"}
@@ -618,8 +625,8 @@ defmodule FiltrTest do
 
     test "field error mode works with validation errors" do
       schema = %{
-        strict_field: [type: :integer, validators: [min: 18], error_mode: :strict],
-        fallback_field: [type: :integer, validators: [min: 18, default: 18], error_mode: :fallback]
+        strict_field: %{type: :integer, validators: [min: 18], error_mode: :strict},
+        fallback_field: %{type: :integer, default: 18, validators: [min: 18], error_mode: :fallback}
       }
 
       params = %{"strict_field" => "10", "fallback_field" => "10"}
@@ -631,8 +638,8 @@ defmodule FiltrTest do
 
     test "field error mode works with cast errors" do
       schema = %{
-        strict_field: [type: :integer, error_mode: :strict],
-        fallback_field: [type: :integer, validators: [default: 0], error_mode: :fallback]
+        strict_field: %{type: :integer, error_mode: :strict},
+        fallback_field: %{type: :integer, default: 0, validators: [], error_mode: :fallback}
       }
 
       params = %{"strict_field" => "not_an_int", "fallback_field" => "not_an_int"}
@@ -645,8 +652,10 @@ defmodule FiltrTest do
     test "field error mode works with nested schemas" do
       schema = %{
         user: %{
-          name: [type: :string, validators: [required: true], error_mode: :strict],
-          age: [type: :integer, validators: [default: 0], error_mode: :fallback]
+          type: %{
+            name: %{type: :string, required: true, validators: [], error_mode: :strict},
+            age: %{type: :integer, default: 0, validators: [], error_mode: :fallback}
+          }
         }
       }
 
@@ -659,9 +668,9 @@ defmodule FiltrTest do
 
     test "all fields use same custom error mode when specified" do
       schema = %{
-        field1: [type: :string, validators: [required: true], error_mode: :strict],
-        field2: [type: :string, validators: [required: true], error_mode: :strict],
-        field3: [type: :string, validators: [required: true], error_mode: :strict]
+        field1: %{type: :string, required: true, validators: [], error_mode: :strict},
+        field2: %{type: :string, required: true, validators: [], error_mode: :strict},
+        field3: %{type: :string, required: true, validators: [], error_mode: :strict}
       }
 
       params = %{}
@@ -678,7 +687,7 @@ defmodule FiltrTest do
       Application.put_env(:filtr, :error_mode, :strict)
 
       schema = %{
-        field: [type: :string, validators: [required: true, default: "default"], error_mode: :fallback]
+        field: %{type: :string, required: true, default: "default", validators: [], error_mode: :fallback}
       }
 
       params = %{}
@@ -693,8 +702,8 @@ defmodule FiltrTest do
   describe "_valid? field" do
     test "sets _valid? to true when all params are valid" do
       schema = %{
-        name: [type: :string, validators: [required: true]],
-        age: [type: :integer, validators: [min: 18]]
+        name: %{type: :string, required: true, validators: []},
+        age: %{type: :integer, validators: [min: 18]}
       }
 
       params = %{"name" => "John", "age" => "25"}
@@ -707,8 +716,8 @@ defmodule FiltrTest do
 
     test "sets _valid? to false when params have errors" do
       schema = %{
-        name: [type: :string, validators: [required: true]],
-        age: [type: :integer, validators: [min: 18]]
+        name: %{type: :string, required: true, validators: []},
+        age: %{type: :integer, validators: [min: 18]}
       }
 
       params = %{"age" => "10"}
@@ -722,8 +731,10 @@ defmodule FiltrTest do
     test "sets _valid? to false when nested params have errors" do
       schema = %{
         user: %{
-          name: [type: :string, validators: [required: true]],
-          email: [type: :string, validators: [required: true]]
+          type: %{
+            name: %{type: :string, required: true, validators: []},
+            email: %{type: :string, required: true, validators: []}
+          }
         }
       }
 
@@ -737,7 +748,7 @@ defmodule FiltrTest do
 
     test "sets _valid? to false when list items have errors" do
       schema = %{
-        tags: [type: {:list, :string}, validators: [min: 3]]
+        tags: %{type: {:list, :string}, validators: [min: 3]}
       }
 
       params = %{"tags" => ["valid", "no"]}
@@ -749,7 +760,7 @@ defmodule FiltrTest do
 
     test "sets _valid? to true in fallback mode" do
       schema = %{
-        name: [type: :string, validators: [required: true]]
+        name: %{type: :string, required: true, validators: []}
       }
 
       params = %{}
@@ -760,7 +771,7 @@ defmodule FiltrTest do
 
     test "sets _valid? to true in raise mode" do
       schema = %{
-        name: [type: :string]
+        name: %{type: :string}
       }
 
       params = %{"name" => "John"}
@@ -771,8 +782,8 @@ defmodule FiltrTest do
 
     test "_valid? works with mixed field error modes" do
       schema = %{
-        strict_field: [type: :string, validators: [required: true], error_mode: :strict],
-        fallback_field: [type: :string, validators: [default: "default"], error_mode: :fallback]
+        strict_field: %{type: :string, required: true, validators: [], error_mode: :strict},
+        fallback_field: %{type: :string, default: "default", validators: [], error_mode: :fallback}
       }
 
       params = %{}
@@ -899,9 +910,9 @@ defmodule FiltrTest do
 
     test "flow with schema and validation" do
       schema = %{
-        name: [type: :string, validators: [in: ["solid", "svelte"]]],
-        age: [type: :integer],
-        tags: [type: {:list, :string}]
+        name: %{type: :string, validators: [in: ["solid", "svelte"]]},
+        age: %{type: :integer},
+        tags: %{type: {:list, :string}}
       }
 
       correct_params = %{
@@ -926,6 +937,158 @@ defmodule FiltrTest do
                name: ["must be one of: solid, svelte"],
                tags: %{1 => ["invalid string"], 3 => ["invalid string"]}
              } == Filtr.collect_errors(result)
+    end
+  end
+
+  # Things to fix:
+
+  describe "regression: numeric cast on non-string values" do
+    test "integer field with a float value returns a cast error instead of crashing" do
+      result = Filtr.run(%{age: %{type: :integer}}, %{"age" => 25.5}, error_mode: :strict)
+
+      assert result._valid? == false
+      assert {:error, ["invalid integer"]} = result.age
+    end
+
+    test "integer field with a map value returns a cast error instead of crashing" do
+      result = Filtr.run(%{age: %{type: :integer}}, %{"age" => %{"x" => 1}}, error_mode: :strict)
+
+      assert {:error, ["invalid integer"]} = result.age
+    end
+
+    test "float field accepts an integer value" do
+      result = Filtr.run(%{score: %{type: :float}}, %{"score" => 25}, error_mode: :strict)
+
+      assert result.score == 25.0
+      assert result._valid? == true
+    end
+
+    test "float field with a list value returns a cast error instead of crashing" do
+      result = Filtr.run(%{score: %{type: :float}}, %{"score" => [1, 2]}, error_mode: :strict)
+
+      assert {:error, ["invalid float"]} = result.score
+    end
+  end
+
+  describe "regression: nil param does not crash validators" do
+    test "optional string field with validators treats explicit nil as absent" do
+      schema = %{name: %{type: :string, validators: [min: 3]}}
+      result = Filtr.run(schema, %{"name" => nil}, error_mode: :strict)
+
+      # Explicit null is treated like a missing value: validators are skipped and
+      # the field is valid because it is not required.
+      assert result._valid? == true
+      assert result.name == nil
+    end
+
+    test "required string field with explicit nil reports required" do
+      schema = %{name: %{type: :string, required: true, validators: [min: 3]}}
+      result = Filtr.run(schema, %{"name" => nil}, error_mode: :strict)
+
+      assert result._valid? == false
+      assert {:error, ["required"]} = result.name
+    end
+
+    test "nil element inside a scalar list does not crash" do
+      schema = %{tags: %{type: {:list, :string}, validators: [min: 2]}}
+      result = Filtr.run(schema, %{"tags" => ["ok", nil]}, error_mode: :strict)
+
+      assert is_list(result.tags)
+    end
+  end
+
+  describe "regression: unknown type does not crash error formatting" do
+    test "unknown tuple type returns an error instead of crashing" do
+      result = Filtr.run(%{data: %{type: {:foo, :bar}}}, %{"data" => "x"}, error_mode: :strict)
+
+      assert result._valid? == false
+      assert {:error, _} = result.data
+    end
+
+    test "function-typed field with a plugin validator does not crash" do
+      schema = %{name: %{type: fn v -> {:ok, v} end, validators: [min: 2]}}
+      result = Filtr.run(schema, %{"name" => "ab"}, error_mode: :strict)
+
+      assert is_boolean(result._valid?)
+    end
+  end
+
+  describe "regression: raise mode with non-binary error term" do
+    test "raises RuntimeError (not a protocol error) for a tuple error term" do
+      schema = %{v: %{type: :integer, validators: [custom: fn _ -> {:error, {:too_small, 3}} end]}}
+
+      assert_raise RuntimeError, ~r/Invalid value for v/, fn ->
+        Filtr.run(schema, %{"v" => "1"}, error_mode: :raise)
+      end
+    end
+  end
+
+  describe "regression: scalar param for nested/list schema does not crash" do
+    test "nested-map schema given a scalar value does not crash" do
+      schema = %{user: %{type: %{name: %{type: :string}}}}
+      result = Filtr.run(schema, %{"user" => "oops"})
+
+      assert result.user == %{name: nil}
+    end
+
+    test "list-of-maps schema given scalar items does not crash" do
+      schema = %{items: %{type: {:list, %{a: %{type: :integer}}}}}
+      result = Filtr.run(schema, %{"items" => ["notamap"]}, error_mode: :strict)
+
+      assert is_list(result.items)
+    end
+  end
+
+  describe "regression: unknown validator preserves real errors" do
+    test "an unrecognized validator does not discard the field's real validation errors" do
+      schema = %{v: %{type: :integer, validators: [min: 100, bogus: true]}}
+      result = Filtr.run(schema, %{"v" => "5"}, error_mode: :strict)
+
+      assert {:error, errors} = result.v
+      assert "must be at least 100" in errors
+    end
+  end
+
+  describe "regression: required/default for list and nested keys" do
+    test "required list reports an error when missing" do
+      schema = %{tags: %{type: {:list, :string}, required: true}}
+      result = Filtr.run(schema, %{}, error_mode: :strict)
+
+      assert result._valid? == false
+      assert {:error, ["required"]} = result.tags
+    end
+
+    test "default is applied for a missing list" do
+      schema = %{tags: %{type: {:list, :string}, default: ["x"]}}
+      result = Filtr.run(schema, %{})
+
+      assert result.tags == ["x"]
+    end
+
+    test "required nested map reports an error when missing" do
+      schema = %{user: %{type: %{name: %{type: :string}}, required: true}}
+      result = Filtr.run(schema, %{}, error_mode: :strict)
+
+      assert result._valid? == false
+    end
+  end
+
+  describe "regression: explicit nil honours default" do
+    test "explicit nil param resolves the configured default" do
+      result = Filtr.run(%{page: %{type: :integer, default: 1}}, %{"page" => nil})
+
+      assert result.page == 1
+    end
+  end
+
+  describe "regression: :time type is castable" do
+    # Assumes option A (implement :time). Delete this block if you instead
+    # removed :time from Filtr.DefaultPlugin.types/0.
+    test "casts an ISO8601 time string" do
+      result = Filtr.run(%{t: %{type: :time}}, %{"t" => "12:30:00"}, error_mode: :strict)
+
+      assert result.t == ~T[12:30:00]
+      assert result._valid? == true
     end
   end
 end

@@ -47,7 +47,11 @@ defmodule Filtr.Helpers do
     end
   end
 
-  defp build_type_plugin_map do
+  @doc """
+  Builds the type to plugin map from the currently registered plugins.
+  """
+  @spec build_type_plugin_map() :: %{atom() => module()}
+  def build_type_plugin_map do
     plugins = Filtr.Plugin.all()
 
     Enum.reduce(plugins, %{}, fn plugin, type_map ->
@@ -61,21 +65,15 @@ defmodule Filtr.Helpers do
 
   @run_opts_keys [:error_mode]
 
-  @doc """
-  Parses and structures parameter options into a standardized format.
-
-  Separates type and run options from validation options, grouping
-  validators under a `:validators` key.
-
-  Run options: #{Enum.join(@run_opts_keys, ", ")}
-  """
-  @spec parse_param_opts(keyword()) :: keyword()
+  @spec parse_param_opts(keyword()) :: map()
   def parse_param_opts(opts) do
-    validators = Keyword.drop(opts, [:type] ++ @run_opts_keys)
+    opts_keys = [:type, :default, :required] ++ @run_opts_keys
+    validators = Keyword.drop(opts, opts_keys)
 
     opts
-    |> Keyword.take([:type] ++ @run_opts_keys)
+    |> Keyword.take(opts_keys)
     |> Keyword.put(:validators, validators)
+    |> Map.new()
   end
 
   @doc """
@@ -89,14 +87,14 @@ defmodule Filtr.Helpers do
       # Input AST from:
       param :user do
         param :name, :string, required: true
-        param :age, :integer, min: 18
+        param :age, :integer, min: 18, default: 18
       end
 
       # Output:
       %{
         user: %{
-          name: %{type: :string, validators: [required: true]},
-           age: %{type: :integer, validators: [min: 18]}
+          name: %{type: :string, required: true, validators: []},
+           age: %{type: :integer, default: 18, validators: [min: 18]}
         }
       }
 
@@ -108,7 +106,7 @@ defmodule Filtr.Helpers do
   def render_ast_to_schema(ast, schema \\ %{})
 
   def render_ast_to_schema({:param, _, [key, [do: ast]]}, schema) do
-    Map.put(schema, key, render_ast_to_schema(ast, %{}))
+    Map.put(schema, key, %{type: render_ast_to_schema(ast, %{})})
   end
 
   def render_ast_to_schema({:param, _, args}, schema) do
