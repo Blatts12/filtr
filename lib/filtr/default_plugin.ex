@@ -51,6 +51,8 @@ defmodule Filtr.DefaultPlugin do
 
   # Boolean
   def cast(value, :boolean, _ctx) when is_boolean(value), do: {:ok, value}
+  def cast(value, :boolean, _ctx) when value in ["true", "1", "yes"], do: {:ok, true}
+  def cast(value, :boolean, _ctx) when value in ["false", "0", "no"], do: {:ok, false}
 
   def cast(value, :boolean, _ctx) when is_binary(value) do
     case String.downcase(value) do
@@ -97,19 +99,19 @@ defmodule Filtr.DefaultPlugin do
   @impl Filtr.Plugin
   # String
   def validate(value, :string, {:length, length}, _ctx) do
-    if String.length(value) == length,
+    if byte_size(value) >= length and String.length(value) == length,
       do: :ok,
       else: {:error, "must be exactly #{length} characters long"}
   end
 
   def validate(value, :string, {:min, min}, _ctx) do
-    if String.length(value) >= min,
+    if byte_size(value) >= min and String.length(value) >= min,
       do: :ok,
       else: {:error, "must be at least #{min} characters long"}
   end
 
   def validate(value, :string, {:max, max}, _ctx) do
-    if String.length(value) <= max,
+    if byte_size(value) <= max or String.length(value) <= max,
       do: :ok,
       else: {:error, "must be at most #{max} characters long"}
   end

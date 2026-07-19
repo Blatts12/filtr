@@ -16,6 +16,9 @@ defmodule Filtr.Processor.Cast do
   def cast(_key, _key_schema, :__none__, _context), do: {:ok, :__none__}
   def cast(_key, %{type: opaque}, param, _context) when is_opaque(opaque), do: {:ok, param}
 
+  def cast(key, %{type: type} = key_schema, param, context) when is_atom(type),
+    do: plugin_cast(param, key, key_schema, context)
+
   def cast(key, %{type: cast_fn} = key_schema, param, context) when is_function(cast_fn, 3) do
     param
     |> cast_fn.(key_schema, context)

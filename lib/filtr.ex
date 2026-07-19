@@ -73,11 +73,12 @@ defmodule Filtr do
       {key, [value | _] = values}, acc when is_map(value) ->
         errors =
           values
-          |> Enum.with_index()
-          |> Enum.reduce(%{}, fn {value, index}, nested_acc ->
+          |> Enum.reduce({%{}, 0}, fn value, {nested_acc, index} ->
             nested_errors = do_collect_errors(value)
-            if nested_errors == %{}, do: nested_acc, else: Map.put(nested_acc, index, nested_errors)
+            nested_acc = if nested_errors == %{}, do: nested_acc, else: Map.put(nested_acc, index, nested_errors)
+            {nested_acc, index + 1}
           end)
+          |> elem(0)
 
         if errors == %{}, do: acc, else: Map.put(acc, key, errors)
 
