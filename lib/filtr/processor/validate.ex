@@ -7,11 +7,10 @@ defmodule Filtr.Processor.Validate do
   alias Filtr.Processor.Value
   alias Filtr.Types
 
-  @spec validate(Types.key(), Types.key_schema(), value :: term(), Types.content()) :: Types.value()
+  @spec validate(Types.key(), Types.key_schema(), value :: term(), Types.content()) ::
+          Types.value()
   def validate(key, key_schema, value, context) when value in [:__none__, nil] do
-    required? = Map.get(key_schema, :required, false)
-
-    if required? do
+    if required?(key_schema) do
       Error.handle_error(["required"], key, key_schema, context)
     else
       {:ok, Default.get_default(key_schema, context)}
@@ -19,8 +18,8 @@ defmodule Filtr.Processor.Validate do
   end
 
   def validate(key, key_schema, value, context) do
-    required? = Map.get(key_schema, :required, false)
-    validators = Map.get(key_schema, :validators, [])
+    required? = required?(key_schema)
+    validators = validators(key_schema)
 
     if validators == [] and not required? do
       {:ok, value}
@@ -28,6 +27,12 @@ defmodule Filtr.Processor.Validate do
       do_validate(key, key_schema, value, required?, validators, context)
     end
   end
+
+  defp required?(%{required: required?}), do: required?
+  defp required?(_key_schema), do: false
+
+  defp validators(%{validators: validators}), do: validators
+  defp validators(_key_schema), do: []
 
   defp do_validate(key, key_schema, value, required?, validators, context) do
     plugin = Context.plugin_for_type(context, key_schema.type)
@@ -51,9 +56,12 @@ defmodule Filtr.Processor.Validate do
   end
 
   defp validator([], [], _value, _type, _plugin, _context), do: :ok
-  defp validator([], [_ | _] = current_errors, _value, _type, _plugin, _context), do: {:error, current_errors}
 
-  defp validator([{:custom, func} | rest], current_errors, value, type, plugin, context) when is_function(func) do
+  defp validator([], [_ | _] = current_errors, _value, _type, _plugin, _context),
+    do: {:error, current_errors}
+
+  defp validator([{:custom, func} | rest], current_errors, value, type, plugin, context)
+       when is_function(func) do
     result =
       cond do
         is_function(func, 1) -> func.(value)
@@ -83,7 +91,15 @@ defmodule Filtr.Processor.Validate do
   end
 
   defp validator_result(:not_handled, rest, current_errors, value, type, plugin, context),
-    do: validator(rest, [Error.missing_plugin_error(type, "validator") | current_errors], value, type, plugin, context)
+    do:
+      validator(
+        rest,
+        [Error.missing_plugin_error(type, "validator") | current_errors],
+        value,
+        type,
+        plugin,
+        context
+      )
 
   defp validator_result(true, rest, current_errors, value, type, plugin, context),
     do: validator(rest, current_errors, value, type, plugin, context)
@@ -100,8 +116,9 @@ defmodule Filtr.Processor.Validate do
   defp validator_result(:error, rest, current_errors, value, type, plugin, context),
     do: validator(rest, ["invalid value" | current_errors], value, type, plugin, context)
 
-  defp validator_result({:error, errors}, rest, current_errors, value, type, plugin, context) when is_list(errors),
-    do: validator(rest, errors ++ current_errors, value, type, plugin, context)
+  defp validator_result({:error, errors}, rest, current_errors, value, type, plugin, context)
+       when is_list(errors),
+       do: validator(rest, errors ++ current_errors, value, type, plugin, context)
 
   defp validator_result({:error, error}, rest, current_errors, value, type, plugin, context),
     do: validator(rest, [error | current_errors], value, type, plugin, context)

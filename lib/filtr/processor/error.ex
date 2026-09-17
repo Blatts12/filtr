@@ -28,9 +28,8 @@ defmodule Filtr.Processor.Error do
   end
 
   @spec effective_error_mode(Types.key_schema(), Types.context()) :: Types.error_mode()
-  def effective_error_mode(key_schema, context) do
-    Map.get(key_schema, :error_mode, context.error_mode)
-  end
+  def effective_error_mode(%{error_mode: error_mode}, _context), do: error_mode
+  def effective_error_mode(_key_schema, %{error_mode: error_mode}), do: error_mode
 
   defp invoke_error_mode(:fallback, _errors, _key, key_schema, context) do
     value = Default.get_default(key_schema, context)

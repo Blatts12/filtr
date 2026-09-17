@@ -1,13 +1,9 @@
 defmodule Filtr do
   @moduledoc "Main file"
 
-  alias Filtr.Helpers
-
   @spec run(schema :: map(), params :: map()) :: map()
   @spec run(schema :: map(), params :: map(), run_opts :: keyword()) :: map()
   def run(schema, params, run_opts \\ []) do
-    run_opts = Keyword.put(run_opts, :plugin_map, Helpers.type_plugin_map())
-
     Filtr.Processor.run(schema, params, run_opts)
   end
 

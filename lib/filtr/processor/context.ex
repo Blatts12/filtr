@@ -7,15 +7,12 @@ defmodule Filtr.Processor.Context do
 
   @spec create_context(Types.params(), Types.opts()) :: Types.context()
   def create_context(params, opts) do
-    {plugin_map, opts} = Keyword.pop_lazy(opts, :plugin_map, &Helpers.type_plugin_map/0)
-    {error_mode, opts} = Keyword.pop_lazy(opts, :error_mode, &Helpers.default_error_mode/0)
-
     %{
       result: [],
       params: params,
       valid?: true,
-      plugin_map: plugin_map,
-      error_mode: error_mode,
+      plugin_map: Keyword.get_lazy(opts, :plugin_map, &Helpers.type_plugin_map/0),
+      error_mode: Keyword.get_lazy(opts, :error_mode, &Helpers.default_error_mode/0),
       opts: opts
     }
   end
@@ -49,7 +46,12 @@ defmodule Filtr.Processor.Context do
   def to_result(context), do: :maps.from_list([{:_valid?, context.valid?} | context.result])
 
   @spec plugin_for_type(Types.context(), type :: Types.plugin_type()) :: Types.plugin() | nil
-  def plugin_for_type(%{plugin_map: plugin_map}, type), do: plugin_map[type]
+  def plugin_for_type(%{plugin_map: plugin_map}, type) do
+    case plugin_map do
+      %{^type => plugin} -> plugin
+      _ -> nil
+    end
+  end
 
   @spec plugin_for_type!(Types.context(), type :: Types.plugin_type()) :: Types.plugin()
   def plugin_for_type!(context, type),

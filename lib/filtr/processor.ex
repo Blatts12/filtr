@@ -48,9 +48,8 @@ defmodule Filtr.Processor do
 
   # A list or nested-map key only needs the required/default treatment that scalar
   # keys already get when the param is absent and the schema asks for one.
-  defp missing_key?(key_schema, value) when value in [:__none__, nil] do
-    Map.get(key_schema, :required, false) or Map.has_key?(key_schema, :default)
-  end
+  defp missing_key?(%{required: true}, value) when value in [:__none__, nil], do: true
+  defp missing_key?(%{default: _}, value) when value in [:__none__, nil], do: true
 
   defp missing_key?(_key_schema, _value), do: false
 
