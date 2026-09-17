@@ -71,27 +71,26 @@ defmodule Filtr.Processor do
     process(schema, context)
   end
 
-  defp process_list(key, key_schema, value, context) do
-    {result, valid?} = list_value(key, key_schema, value, context)
+  defp process_list(key, %{type: {:list, item_type}} = key_schema, value, context) do
+    {result, valid?} = reduce_items(value, item_fun(key, key_schema, item_type, context))
     put_list_result(context, key, result, valid?)
   end
 
-  defp list_value(_key, %{type: {:list, nested_schema}}, value, context)
-       when is_map(nested_schema) do
-    reduce_items(value, fn item ->
+  defp item_fun(_key, _key_schema, nested_schema, context) when is_map(nested_schema) do
+    fn item ->
       %{result: result, valid?: valid?} = process_nested(nested_schema, item, context)
       {:maps.from_list(result), valid?}
-    end)
+    end
   end
 
-  defp list_value(key, %{type: {:list, {:list, _} = inner_type}} = key_schema, value, context) do
-    inner_schema = %{key_schema | type: inner_type}
-    reduce_items(value, fn item -> list_value(key, inner_schema, item, context) end)
+  defp item_fun(key, key_schema, {:list, inner_type}, context) do
+    inner_fun = item_fun(key, key_schema, inner_type, context)
+    fn item -> reduce_items(item, inner_fun) end
   end
 
-  defp list_value(key, %{type: {:list, type}} = key_schema, value, context) do
-    item_schema = %{key_schema | type: type}
-    reduce_items(value, fn item -> process_item(key, item_schema, item, context) end)
+  defp item_fun(key, key_schema, item_type, context) do
+    item_schema = %{key_schema | type: item_type}
+    fn item -> process_item(key, item_schema, item, context) end
   end
 
   defp process_item(key, item_schema, value, context) do
@@ -125,9 +124,11 @@ defmodule Filtr.Processor do
   # Phoenix parses items[0][name] into a map keyed by index, so the keys have to be sorted
   # numerically.
   defp reduce_items(values, fun) when is_map(values) do
-    values
-    |> Enum.sort_by(fn {key, _value} -> index_key(key) end)
-    |> Enum.map(fn {_key, value} -> value end)
+    indexed = Enum.map(values, fn {key, value} -> {index_key(key), value} end)
+    sorted = :lists.keysort(1, indexed)
+
+    sorted
+    |> Enum.map(fn {_index, value} -> value end)
     |> reduce_items(fun)
   end
 
