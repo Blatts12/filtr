@@ -1,6 +1,62 @@
 defmodule Filtr.DefaultPlugin do
   @moduledoc """
-    Default plugin
+  The built-in plugin, covering the types most params are made of.
+
+  It is always registered, and it always sits first in the plugin list, so any plugin you
+  configure can take a type over from it. See `Filtr.Plugin` for how that works.
+
+  ## Supported types
+
+  - `:string` - accepts binaries only. A number arriving as an integer fails, which keeps
+    a string param from silently swallowing anything else.
+  - `:integer` - accepts integers, and parses binaries with `Integer.parse/1`. Trailing
+    characters are dropped, so `"25abc"` casts to `25`.
+  - `:float` - accepts floats, promotes integers, and parses binaries.
+  - `:boolean` - accepts booleans, plus `"true"`, `"1"`, `"yes"`, `"false"`, `"0"` and
+    `"no"` in any casing.
+  - `:time`, `:date`, `:datetime` - accept the matching struct, convert from `DateTime`
+    and `NaiveDateTime` where that makes sense, and parse ISO 8601 binaries. A naive
+    datetime is assumed to be UTC.
+  - `:list` - accepts a list as is, and splits a binary on commas, dropping empty parts.
+
+  Casting the items inside a list is the schema's job, not this plugin's. Use
+  `{:list, :integer}` for that, because a plain `:list` hands the items back untouched.
+
+  ## Available validators
+
+  Validators are the keyword list under `:validators` in a key schema. Every validator
+  below fails with a message describing the rule it broke.
+
+      %{
+        username: %{type: :string, validators: [min: 3, max: 20, alphanumeric: true]},
+        page: %{type: :integer, validators: [min: 1]},
+        tags: %{type: {:list, :string}, validators: [unique: true, max: 5]}
+      }
+
+  **`:string`** - `length: n`, `min: n`, `max: n`, `pattern: regex`,
+  `starts_with: prefix`, `ends_with: suffix`, `contains: substring`, `alphanumeric: true`.
+  Lengths count graphemes, not bytes.
+
+  **`:integer` and `:float`** - `min: n`, `max: n`, `positive: true`, `negative: true`.
+
+  **`:date` and `:datetime`** - `min: value`, `max: value`, both inclusive.
+
+  **`:list`** - `length: n`, `min: n`, `max: n`, `unique: true`, `non_empty: true`, and
+  `in: allowed` to check every item against a list of allowed values.
+
+  **Any type** - `in: allowed` checks the value itself against a list.
+
+  Two gaps are worth knowing about. `:time` has no validators of its own, so only the
+  generic `in:` applies to it, and an unsupported combination such as `pattern:` on an
+  integer is not a silent no-op. It returns `:not_handled`, which Filtr reports as a
+  missing validator error for that key.
+
+  You can borrow these rules from your own plugin by delegating to this module:
+
+      @impl Filtr.Plugin
+      def validate(value, :slug, validator, ctx) do
+        Filtr.DefaultPlugin.validate(value, :string, validator, ctx)
+      end
   """
 
   use Filtr.Plugin

@@ -149,6 +149,25 @@ defmodule Filtr.ProcessorTest do
       assert Processor.run(schema, %{"tags" => %{"0" => "a", "1" => "b"}}).tags == ["a", "b"]
     end
 
+    test "orders a map of items by its index keys" do
+      schema = %{tags: %{type: {:list, :integer}}}
+      params = %{"tags" => Map.new(0..11, fn index -> {to_string(index), to_string(index)} end)}
+
+      assert Processor.run(schema, params).tags == Enum.to_list(0..11)
+    end
+
+    test "orders a map of items with integer keys" do
+      schema = %{tags: %{type: {:list, :string}}}
+
+      assert Processor.run(schema, %{"tags" => %{2 => "c", 10 => "a", 3 => "b"}}).tags == ["c", "b", "a"]
+    end
+
+    test "falls back to key order for non index keys" do
+      schema = %{tags: %{type: {:list, :string}}}
+
+      assert Processor.run(schema, %{"tags" => %{"b" => "second", "a" => "first"}}).tags == ["first", "second"]
+    end
+
     test "returns an empty list for a param that is neither a list nor a map" do
       schema = %{tags: %{type: {:list, :string}}}
 

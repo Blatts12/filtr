@@ -8,7 +8,8 @@ defmodule Filtr.Processor do
   alias Filtr.Types
 
   @spec run(schema :: Types.schema(), params :: Types.params()) :: Types.result()
-  @spec run(schema :: Types.schema(), params :: Types.params(), opts :: Types.opts()) :: Types.result()
+  @spec run(schema :: Types.schema(), params :: Types.params(), opts :: Types.opts()) ::
+          Types.result()
   def run(schema, params, opts \\ []) do
     context = Context.create_context(params, opts)
 
@@ -21,7 +22,8 @@ defmodule Filtr.Processor do
     :maps.fold(&process_entry/3, context, schema)
   end
 
-  defp process_entry(key, %{type: nested_schema} = key_schema, context) when is_map(nested_schema) do
+  defp process_entry(key, %{type: nested_schema} = key_schema, context)
+       when is_map(nested_schema) do
     value = Context.get_param(context, key)
 
     if missing_key?(key_schema, value) do
@@ -74,7 +76,8 @@ defmodule Filtr.Processor do
     put_list_result(context, key, result, valid?)
   end
 
-  defp list_value(_key, %{type: {:list, nested_schema}}, value, context) when is_map(nested_schema) do
+  defp list_value(_key, %{type: {:list, nested_schema}}, value, context)
+       when is_map(nested_schema) do
     reduce_items(value, fn item ->
       %{result: result, valid?: valid?} = process_nested(nested_schema, item, context)
       {:maps.from_list(result), valid?}
@@ -119,13 +122,27 @@ defmodule Filtr.Processor do
     {Enum.reverse(results), valid?}
   end
 
+  # Phoenix parses items[0][name] into a map keyed by index, so the keys have to be sorted
+  # numerically.
   defp reduce_items(values, fun) when is_map(values) do
     values
-    |> Map.values()
+    |> Enum.sort_by(fn {key, _value} -> index_key(key) end)
+    |> Enum.map(fn {_key, value} -> value end)
     |> reduce_items(fun)
   end
 
   defp reduce_items(_values, _fun), do: {[], true}
+
+  defp index_key(key) when is_integer(key), do: key
+
+  defp index_key(key) when is_binary(key) do
+    case Integer.parse(key) do
+      {index, ""} -> index
+      _ -> key
+    end
+  end
+
+  defp index_key(key), do: key
 
   defp put_list_result(context, key, result, valid?) do
     result_list = [{key, result} | context.result]

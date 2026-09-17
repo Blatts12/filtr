@@ -1,7 +1,77 @@
 if Code.ensure_loaded?(Phoenix.LiveView) do
   defmodule Filtr.LiveView do
     @moduledoc """
-      Provides Phoenix LiveView integration with attr-style parameter definitions.
+    Phoenix LiveView integration, with URL parameters declared once per LiveView.
+
+    A LiveView reads the same query params on mount and again on every navigation, and
+    that check tends to get copied between `mount/3` and `handle_params/3`. Declare the
+    params here instead, and the validated result is waiting in the assigns.
+
+    This module only exists when `Phoenix.LiveView` is available, and it assumes you know
+    the schema fields from `Filtr`.
+
+    ## Declaring params
+
+    Unlike `Filtr.Controller`, params belong to the LiveView as a whole, not to a single
+    function. Declare them anywhere in the module.
+
+        defmodule MyAppWeb.SearchLive do
+          use MyAppWeb, :live_view
+          use Filtr.LiveView, error_mode: :fallback
+
+          param :query, :string, default: ""
+          param :limit, :integer, default: 10, min: 1, max: 100
+
+          param :filters do
+            param :category, :string, default: "all"
+            param :sort, :string, in: ["name", "date"], default: "name"
+          end
+
+          def mount(_params, _session, socket) do
+            # socket.assigns.filtr.query, .limit, .filters.sort
+            {:ok, socket}
+          end
+        end
+
+    Nested blocks and `param name, :list do ... end` work exactly as they do in
+    `Filtr.Controller`.
+
+    ## How the params reach the socket
+
+    Filtr adds an `on_mount` hook that validates the mount params and assigns the result
+    as `:filtr`, then attaches a `handle_params` hook that revalidates on every navigation
+    and reassigns. Your own `handle_params/3` still runs and receives the raw params, so
+    read `socket.assigns.filtr` when you want the validated ones.
+
+    The assign is always a map with a `_valid?` flag, which is what you check in `:strict`
+    mode:
+
+        def mount(_params, _session, socket) do
+          if socket.assigns.filtr._valid? do
+            {:ok, load(socket)}
+          else
+            {:ok, put_flash(socket, :error, "Bad search link")}
+          end
+        end
+
+    ## Error modes
+
+    `error_mode:` accepts `:fallback`, `:strict` or `:raise` only, and defaults to
+    `:fallback`. Unlike `Filtr.Controller`, it ignores the app-wide
+    `config :filtr, error_mode: mode`, so set it explicitly if your app uses a different
+    default. Custom error handler functions are not supported here either, because there
+    is no connection to hand back.
+
+    Think twice before choosing `:raise`. Params come from the URL, which anyone can edit,
+    and a raise there takes down the LiveView process on mount instead of showing the
+    person something useful.
+
+    ## Lists in the URL
+
+    Phoenix parses `users[0][name]=John&users[1][name]=Jane` into a map keyed by index,
+    and Filtr converts it back to a list, sorted by that index. Nothing else in the URL
+    guarantees order, so an unindexed list of params comes back in whatever order the map
+    gives.
     """
     alias Filtr.Helpers
 
