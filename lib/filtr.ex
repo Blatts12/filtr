@@ -52,45 +52,5 @@ defmodule Filtr do
 
   """
   @spec collect_errors(filtr_result :: map()) :: map() | nil
-  def collect_errors(filtr_result) do
-    errors = do_collect_errors(filtr_result)
-    if errors == %{}, do: nil, else: errors
-  end
-
-  defp do_collect_errors(filtr_result) do
-    Enum.reduce(filtr_result, %{}, fn
-      {key, {:error, errors}}, acc ->
-        Map.put(acc, key, List.wrap(errors))
-
-      {key, value}, acc when is_map(value) ->
-        errors = do_collect_errors(value)
-        if errors == %{}, do: acc, else: Map.put(acc, key, errors)
-
-      {key, [value | _] = values}, acc when is_map(value) ->
-        errors =
-          values
-          |> Enum.reduce({%{}, 0}, fn value, {nested_acc, index} ->
-            nested_errors = do_collect_errors(value)
-            nested_acc = if nested_errors == %{}, do: nested_acc, else: Map.put(nested_acc, index, nested_errors)
-            {nested_acc, index + 1}
-          end)
-          |> elem(0)
-
-        if errors == %{}, do: acc, else: Map.put(acc, key, errors)
-
-      {key, values}, acc when is_list(values) ->
-        errors =
-          values
-          |> Enum.with_index()
-          |> Enum.reduce(%{}, fn
-            {{:error, error}, index}, nested_acc -> Map.put(nested_acc, index, List.wrap(error))
-            _, nested_acc -> nested_acc
-          end)
-
-        if errors == %{}, do: acc, else: Map.put(acc, key, errors)
-
-      _, acc ->
-        acc
-    end)
-  end
+  defdelegate collect_errors(filtr_result), to: Filtr.Errors, as: :collect
 end

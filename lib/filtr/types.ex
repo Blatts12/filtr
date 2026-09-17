@@ -7,7 +7,7 @@ defmodule Filtr.Types do
   @type params() :: map()
   @type opts() :: keyword()
   @type plugin() :: module()
-  @type error_mode() :: :fallback | :string | :raise
+  @type error_mode() :: :fallback | :strict | :raise
   @type default() :: term() | (-> term())
   @type validators() :: keyword()
   @type opaque() :: :__none__ | nil
