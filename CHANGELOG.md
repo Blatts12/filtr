@@ -47,14 +47,14 @@ casts. Measured on an AMD Ryzen 7 5800X (Elixir 1.20.1 / Erlang 29.0.2). See
 
 | Workload                              | Before   | After   | Change      |
 | ------------------------------------- | -------- | ------- | ----------- |
-| Full mixed-schema run (all types)     | 6.45 μs  | 4.29 μs | ~33% faster |
-| Nested schema, depth 10               | 2.21 μs  | 1.61 μs | ~27% faster |
-| Nested schema, depth 50               | 9.21 μs  | 6.19 μs | ~33% faster |
-| List of nested schemas, depth 10      | 3.06 μs  | 2.04 μs | ~33% faster |
-| List of nested schemas, depth 50      | 13.81 μs | 8.48 μs | ~39% faster |
-| `collect_errors/1` (list of 100 maps) | 6.43 μs  | 7.23 μs | ~12% slower |
-| Boolean cast                          | 496 ns   | 304 ns  | ~39% faster |
-| Per-type validator suite (e.g. list)  | 858 ns   | 700 ns  | ~18% faster |
+| Full mixed-schema run (all types)     | 6.45 μs  | 4.22 μs | ~35% faster |
+| Nested schema, depth 10               | 2.21 μs  | 1.59 μs | ~28% faster |
+| Nested schema, depth 50               | 9.21 μs  | 6.04 μs | ~34% faster |
+| List of nested schemas, depth 10      | 3.06 μs  | 2.06 μs | ~33% faster |
+| List of nested schemas, depth 50      | 13.81 μs | 8.44 μs | ~39% faster |
+| `collect_errors/1` (list of 100 maps) | 6.43 μs  | 4.52 μs | ~30% faster |
+| Boolean cast                          | 496 ns   | 293 ns  | ~41% faster |
+| Per-type validator suite (e.g. list)  | 858 ns   | 695 ns  | ~19% faster |
 
 **Lower memory usage**
 
