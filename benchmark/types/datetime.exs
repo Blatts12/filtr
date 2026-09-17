@@ -23,4 +23,4 @@ params = %{"value" => "2026-07-04T12:00:00Z"}
   schema = %{value: opts}
   {name, fn -> Filtr.run(schema, params) end}
 end)
-|> Bench.run()
+|> Bench.run(data: params)

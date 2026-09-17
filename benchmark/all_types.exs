@@ -43,7 +43,10 @@ params = %{
   ]
 }
 
-Bench.run(%{
-  "fallback mode" => fn -> Filtr.run(schema, params, error_mode: :fallback) end,
-  "strict mode" => fn -> Filtr.run(schema, params, error_mode: :strict) end
-})
+Bench.run(
+  %{
+    "fallback mode" => fn -> Filtr.run(schema, params, error_mode: :fallback) end,
+    "strict mode" => fn -> Filtr.run(schema, params, error_mode: :strict) end
+  },
+  data: params
+)

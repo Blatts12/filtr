@@ -53,4 +53,4 @@ inputs
 |> Map.new(fn {name, result} ->
   {name, fn -> Filtr.collect_errors(result) end}
 end)
-|> Bench.run()
+|> Bench.run(data: Enum.to_list(inputs))

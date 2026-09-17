@@ -34,4 +34,4 @@ params = %{"value" => "benchmark"}
   schema = %{value: opts}
   {name, fn -> Filtr.run(schema, params) end}
 end)
-|> Bench.run()
+|> Bench.run(data: params)

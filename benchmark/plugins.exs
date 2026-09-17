@@ -34,7 +34,7 @@ jobs =
     {"#{count} plugins", job}
   end)
 
-Bench.run(jobs)
+Bench.run(jobs, data: params)
 
 # Leave the global plugin config the way we found it.
 FiltrBench.PluginSupport.reset()
