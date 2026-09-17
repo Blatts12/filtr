@@ -7,12 +7,8 @@ defmodule Filtr.Processor.Cast do
   alias Filtr.Processor.Error
   alias Filtr.Types
 
-  @spec cast(
-          key :: Types.key(),
-          key_schema :: Types.key_schema(),
-          param :: term(),
-          context :: Types.context()
-        ) :: {:ok, term()} | {:error, term()}
+  @spec cast(Types.key(), Types.key_schema(), param :: term(), Types.context()) ::
+          {:ok, term()} | {:error, term()}
   def cast(_key, _key_schema, :__none__, _context), do: {:ok, :__none__}
   def cast(_key, %{type: opaque}, param, _context) when is_opaque(opaque), do: {:ok, param}
 
@@ -50,7 +46,7 @@ defmodule Filtr.Processor.Cast do
       result = plugin.cast(param, type, context)
       cast_result(result, key, key_schema, context)
     else
-      cast_result({:error, "missing plugin for type #{type}"}, key, key_schema, context)
+      cast_result({:error, "missing plugin for type #{inspect(type)}"}, key, key_schema, context)
     end
   end
 

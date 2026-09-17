@@ -64,6 +64,20 @@ defmodule Filtr.DefaultPlugin do
 
   def cast(_value, :boolean, _ctx), do: {:error, "invalid boolean"}
 
+  # Time
+  def cast(%Time{} = time, :time, _ctx), do: {:ok, time}
+  def cast(%DateTime{} = dt, :time, _ctx), do: {:ok, DateTime.to_time(dt)}
+  def cast(%NaiveDateTime{} = ndt, :time, _ctx), do: {:ok, NaiveDateTime.to_time(ndt)}
+
+  def cast(value, :time, _ctx) when is_binary(value) do
+    case Time.from_iso8601(value) do
+      {:ok, time} -> {:ok, time}
+      _ -> {:error, "invalid time"}
+    end
+  end
+
+  def cast(_value, :time, _ctx), do: {:error, "invalid time"}
+
   # Date
   def cast(%Date{} = date, :date, _ctx), do: {:ok, date}
   def cast(%DateTime{} = dt, :date, _ctx), do: {:ok, DateTime.to_date(dt)}

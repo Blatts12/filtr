@@ -21,23 +21,50 @@ defmodule Filtr.Processor do
     :maps.fold(&process_entry/3, context, schema)
   end
 
-  defp process_entry(key, %{type: nested_schema}, context) when is_map(nested_schema) do
+  defp process_entry(key, %{type: nested_schema} = key_schema, context) when is_map(nested_schema) do
     value = Context.get_param(context, key)
-    nested_context = process_nested(nested_schema, value, context)
-    Context.put_nested_result(context, key, nested_context)
+
+    if missing_key?(key_schema, value) do
+      resolve_missing(key, key_schema, context)
+    else
+      nested_context = process_nested(nested_schema, value, context)
+      Context.put_nested_result(context, key, nested_context)
+    end
   end
 
   defp process_entry(key, %{type: {:list, _type}} = key_schema, context) do
     value = Context.get_param(context, key)
-    process_list(key, key_schema, value, context)
+
+    if missing_key?(key_schema, value) do
+      resolve_missing(key, key_schema, context)
+    else
+      process_list(key, key_schema, value, context)
+    end
   end
 
   defp process_entry(key, %{type: _type} = key_schema, context) do
     Value.process_param(key, key_schema, context)
   end
 
+  # A list or nested-map key only needs the required/default treatment that scalar
+  # keys already get when the param is absent and the schema asks for one.
+  defp missing_key?(key_schema, value) when value in [:__none__, nil] do
+    Map.get(key_schema, :required, false) or Map.has_key?(key_schema, :default)
+  end
+
+  defp missing_key?(_key_schema, _value), do: false
+
+  defp resolve_missing(key, key_schema, context) do
+    result =
+      key
+      |> Validate.validate(key_schema, :__none__, context)
+      |> Value.to_proper()
+
+    Context.put_result(context, key, result)
+  end
+
   defp process_nested(schema, params, context) do
-    params = Value.fallback_none(params, %{})
+    params = Value.fallback_map(params, nil)
     context = %{context | result: [], params: params}
 
     process(schema, context)

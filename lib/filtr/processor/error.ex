@@ -4,25 +4,22 @@ defmodule Filtr.Processor.Error do
   alias Filtr.Processor.Default
   alias Filtr.Types
 
-  @spec not_handled(
-          key :: Types.key(),
-          key_schema :: Types.key_schema(),
-          context :: Types.context(),
-          label :: String.t()
-        ) :: {:error, [Types.error()]} | {:ok, term()}
+  @spec not_handled(Types.key(), Types.key_schema(), Types.context(), label :: String.t()) ::
+          {:error, [Types.error()]} | {:ok, term()}
   def not_handled(key, key_schema, context, label) do
     mode = effective_error_mode(key_schema, context)
-    error = missing_plugin_error(key_schema, label)
+    error = missing_plugin_error(key_schema.type, label)
     invoke_error_mode(mode, [error], key, key_schema, context)
   end
 
-  defp missing_plugin_error(%{type: type}, label), do: "missing #{label} for #{inspect(type)}"
+  @spec missing_plugin_error(type :: term(), label :: String.t()) :: String.t()
+  def missing_plugin_error(type, label), do: "missing #{label} for #{inspect(type)}"
 
   @spec handle_error(
           errors :: [Types.error()] | Types.error(),
-          key :: Types.key(),
-          key_schema :: Types.key_schema(),
-          context :: Types.context()
+          Types.key(),
+          Types.key_schema(),
+          Types.context()
         ) :: {:error, [Types.error()]} | {:ok, term()}
   def handle_error(errors, key, key_schema, context) do
     errors = List.wrap(errors)
@@ -30,7 +27,7 @@ defmodule Filtr.Processor.Error do
     invoke_error_mode(mode, errors, key, key_schema, context)
   end
 
-  @spec effective_error_mode(key_schema :: Types.key_schema(), context :: Types.context()) :: Types.error_mode()
+  @spec effective_error_mode(Types.key_schema(), Types.context()) :: Types.error_mode()
   def effective_error_mode(key_schema, context) do
     Map.get(key_schema, :error_mode, context.error_mode)
   end
@@ -49,5 +46,8 @@ defmodule Filtr.Processor.Error do
     raise "Invalid value for #{key}: #{error}"
   end
 
-  defp parse_errors(errors), do: Enum.join(errors, ",\n")
+  defp parse_errors(errors), do: Enum.map_join(errors, ",\n", &to_message/1)
+
+  defp to_message(error) when is_binary(error), do: error
+  defp to_message(error), do: inspect(error)
 end

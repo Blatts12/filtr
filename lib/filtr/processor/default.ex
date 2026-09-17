@@ -3,7 +3,7 @@ defmodule Filtr.Processor.Default do
 
   alias Filtr.Types
 
-  @spec get_default(key_schema :: Types.key_schema(), context :: Types.context()) :: Types.value()
+  @spec get_default(Types.key_schema(), Types.context()) :: Types.value()
   def get_default(key_schema, context) do
     default_value = Map.get(key_schema, :default, :__none__)
     default(default_value, context)

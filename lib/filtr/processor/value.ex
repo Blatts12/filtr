@@ -6,22 +6,18 @@ defmodule Filtr.Processor.Value do
   alias Filtr.Processor.Validate
   alias Filtr.Types
 
-  @spec valid_value?(value :: Types.value()) :: boolean()
+  @spec valid_value?(Types.value()) :: boolean()
   def valid_value?({:error, _error}), do: false
   def valid_value?(_value), do: true
 
-  @spec to_proper(value :: Types.value()) :: {:error, term()} | term()
+  @spec to_proper(Types.value()) :: {:error, term()} | term()
   def to_proper({:ok, {:default, value}}), do: value
   def to_proper({:ok, value}), do: value
   def to_proper({:error, errors}) when is_list(errors), do: {:error, Enum.uniq(errors)}
   def to_proper({:error, error}), do: {:error, [error]}
   def to_proper(value), do: value
 
-  @spec process_param(
-          key :: Types.key(),
-          key_schema :: Types.key_schema(),
-          context :: Types.context()
-        ) :: Types.context()
+  @spec process_param(Types.key(), Types.key_schema(), Types.context()) :: Types.context()
   def process_param(key, key_schema, context) do
     value = Context.get_param(context, key)
 
@@ -50,4 +46,8 @@ defmodule Filtr.Processor.Value do
   @spec fallback_none(value :: term(), fallback :: term()) :: term()
   def fallback_none(:__none__, fallback), do: fallback
   def fallback_none(value, _fallback), do: value
+
+  @spec fallback_map(value :: term(), fallback :: term()) :: term()
+  def fallback_map(%{} = value, _fallback), do: value
+  def fallback_map(_value, fallback), do: fallback
 end

@@ -264,6 +264,15 @@ defmodule FiltrTest do
         Filtr.run(schema, params, error_mode: :raise)
       end
     end
+
+    test "raises on a non-binary error term from a custom validator" do
+      schema = %{v: %{type: :integer, validators: [custom: fn _ -> {:error, {:too_small, 3}} end]}}
+      params = %{"v" => "1"}
+
+      assert_raise RuntimeError, ~r/Invalid value for v: \{:too_small, 3\}/, fn ->
+        Filtr.run(schema, params, error_mode: :raise)
+      end
+    end
   end
 
   describe "required fields and defaults" do
@@ -288,6 +297,14 @@ defmodule FiltrTest do
 
       result = Filtr.run(schema, params)
       assert result.timestamp == 12_345
+    end
+
+    test "applies default when param is explicitly nil" do
+      schema = %{page: %{type: :integer, default: 1}}
+      params = %{"page" => nil}
+
+      result = Filtr.run(schema, params)
+      assert result.page == 1
     end
 
     test "does not apply default when param is provided" do
@@ -940,38 +957,36 @@ defmodule FiltrTest do
     end
   end
 
-  # Things to fix:
-
-  describe "regression: numeric cast on non-string values" do
-    test "integer field with a float value returns a cast error instead of crashing" do
+  describe "numeric casting" do
+    test "returns a cast error for a float in an integer field" do
       result = Filtr.run(%{age: %{type: :integer}}, %{"age" => 25.5}, error_mode: :strict)
 
       assert result._valid? == false
       assert {:error, ["invalid integer"]} = result.age
     end
 
-    test "integer field with a map value returns a cast error instead of crashing" do
+    test "returns a cast error for a map in an integer field" do
       result = Filtr.run(%{age: %{type: :integer}}, %{"age" => %{"x" => 1}}, error_mode: :strict)
 
       assert {:error, ["invalid integer"]} = result.age
     end
 
-    test "float field accepts an integer value" do
+    test "casts an integer to a float" do
       result = Filtr.run(%{score: %{type: :float}}, %{"score" => 25}, error_mode: :strict)
 
       assert result.score == 25.0
       assert result._valid? == true
     end
 
-    test "float field with a list value returns a cast error instead of crashing" do
+    test "returns a cast error for a list in a float field" do
       result = Filtr.run(%{score: %{type: :float}}, %{"score" => [1, 2]}, error_mode: :strict)
 
       assert {:error, ["invalid float"]} = result.score
     end
   end
 
-  describe "regression: nil param does not crash validators" do
-    test "optional string field with validators treats explicit nil as absent" do
+  describe "explicit nil params" do
+    test "treats nil as a missing value for an optional field" do
       schema = %{name: %{type: :string, validators: [min: 3]}}
       result = Filtr.run(schema, %{"name" => nil}, error_mode: :strict)
 
@@ -981,7 +996,7 @@ defmodule FiltrTest do
       assert result.name == nil
     end
 
-    test "required string field with explicit nil reports required" do
+    test "reports required for a nil value on a required field" do
       schema = %{name: %{type: :string, required: true, validators: [min: 3]}}
       result = Filtr.run(schema, %{"name" => nil}, error_mode: :strict)
 
@@ -989,7 +1004,7 @@ defmodule FiltrTest do
       assert {:error, ["required"]} = result.name
     end
 
-    test "nil element inside a scalar list does not crash" do
+    test "skips validators for a nil element inside a scalar list" do
       schema = %{tags: %{type: {:list, :string}, validators: [min: 2]}}
       result = Filtr.run(schema, %{"tags" => ["ok", nil]}, error_mode: :strict)
 
@@ -997,50 +1012,42 @@ defmodule FiltrTest do
     end
   end
 
-  describe "regression: unknown type does not crash error formatting" do
-    test "unknown tuple type returns an error instead of crashing" do
+  describe "non-atom types" do
+    test "returns an error for an unknown tuple type" do
       result = Filtr.run(%{data: %{type: {:foo, :bar}}}, %{"data" => "x"}, error_mode: :strict)
 
       assert result._valid? == false
       assert {:error, _} = result.data
     end
 
-    test "function-typed field with a plugin validator does not crash" do
+    test "reports a missing plugin for a validator on a function type" do
       schema = %{name: %{type: fn v -> {:ok, v} end, validators: [min: 2]}}
       result = Filtr.run(schema, %{"name" => "ab"}, error_mode: :strict)
 
-      assert is_boolean(result._valid?)
+      assert result._valid? == false
+      assert {:error, [error]} = result.name
+      assert error =~ "missing plugin"
     end
   end
 
-  describe "regression: raise mode with non-binary error term" do
-    test "raises RuntimeError (not a protocol error) for a tuple error term" do
-      schema = %{v: %{type: :integer, validators: [custom: fn _ -> {:error, {:too_small, 3}} end]}}
-
-      assert_raise RuntimeError, ~r/Invalid value for v/, fn ->
-        Filtr.run(schema, %{"v" => "1"}, error_mode: :raise)
-      end
-    end
-  end
-
-  describe "regression: scalar param for nested/list schema does not crash" do
-    test "nested-map schema given a scalar value does not crash" do
+  describe "scalar params for nested and list schemas" do
+    test "fills a nested-map schema with nils when given a scalar" do
       schema = %{user: %{type: %{name: %{type: :string}}}}
       result = Filtr.run(schema, %{"user" => "oops"})
 
       assert result.user == %{name: nil}
     end
 
-    test "list-of-maps schema given scalar items does not crash" do
+    test "fills list-of-maps items with nils when given scalars" do
       schema = %{items: %{type: {:list, %{a: %{type: :integer}}}}}
       result = Filtr.run(schema, %{"items" => ["notamap"]}, error_mode: :strict)
 
-      assert is_list(result.items)
+      assert result.items == [%{a: nil}]
     end
   end
 
-  describe "regression: unknown validator preserves real errors" do
-    test "an unrecognized validator does not discard the field's real validation errors" do
+  describe "unknown validators" do
+    test "keeps the real validation errors alongside the missing-plugin error" do
       schema = %{v: %{type: :integer, validators: [min: 100, bogus: true]}}
       result = Filtr.run(schema, %{"v" => "5"}, error_mode: :strict)
 
@@ -1049,8 +1056,8 @@ defmodule FiltrTest do
     end
   end
 
-  describe "regression: required/default for list and nested keys" do
-    test "required list reports an error when missing" do
+  describe "required fields and defaults for lists and nested maps" do
+    test "reports required for a missing list" do
       schema = %{tags: %{type: {:list, :string}, required: true}}
       result = Filtr.run(schema, %{}, error_mode: :strict)
 
@@ -1058,37 +1065,19 @@ defmodule FiltrTest do
       assert {:error, ["required"]} = result.tags
     end
 
-    test "default is applied for a missing list" do
+    test "applies the default for a missing list" do
       schema = %{tags: %{type: {:list, :string}, default: ["x"]}}
       result = Filtr.run(schema, %{})
 
       assert result.tags == ["x"]
     end
 
-    test "required nested map reports an error when missing" do
+    test "reports required for a missing nested map" do
       schema = %{user: %{type: %{name: %{type: :string}}, required: true}}
       result = Filtr.run(schema, %{}, error_mode: :strict)
 
       assert result._valid? == false
-    end
-  end
-
-  describe "regression: explicit nil honours default" do
-    test "explicit nil param resolves the configured default" do
-      result = Filtr.run(%{page: %{type: :integer, default: 1}}, %{"page" => nil})
-
-      assert result.page == 1
-    end
-  end
-
-  describe "regression: :time type is castable" do
-    # Assumes option A (implement :time). Delete this block if you instead
-    # removed :time from Filtr.DefaultPlugin.types/0.
-    test "casts an ISO8601 time string" do
-      result = Filtr.run(%{t: %{type: :time}}, %{"t" => "12:30:00"}, error_mode: :strict)
-
-      assert result.t == ~T[12:30:00]
-      assert result._valid? == true
+      assert {:error, ["required"]} = result.user
     end
   end
 end

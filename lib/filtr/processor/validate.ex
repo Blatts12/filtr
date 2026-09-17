@@ -5,8 +5,10 @@ defmodule Filtr.Processor.Validate do
   alias Filtr.Processor.Default
   alias Filtr.Processor.Error
   alias Filtr.Processor.Value
+  alias Filtr.Types
 
-  def validate(key, key_schema, :__none__, context) do
+  @spec validate(Types.key(), Types.key_schema(), value :: term(), Types.content()) :: Types.value()
+  def validate(key, key_schema, value, context) when value in [:__none__, nil] do
     required? = Map.get(key_schema, :required, false)
 
     if required? do
@@ -68,11 +70,20 @@ defmodule Filtr.Processor.Validate do
       |> plugin.validate(type, validator, context)
       |> validator_result(rest, current_errors, value, type, plugin, context)
     else
-      validator_result({:error, "missing plugin for type #{type}"}, rest, current_errors, value, type, plugin, context)
+      validator_result(
+        {:error, "missing plugin for type #{inspect(type)}"},
+        rest,
+        current_errors,
+        value,
+        type,
+        plugin,
+        context
+      )
     end
   end
 
-  defp validator_result(:not_handled, _rest, _current_errors, _value, _type, _plugin, _context), do: :not_handled
+  defp validator_result(:not_handled, rest, current_errors, value, type, plugin, context),
+    do: validator(rest, [Error.missing_plugin_error(type, "validator") | current_errors], value, type, plugin, context)
 
   defp validator_result(true, rest, current_errors, value, type, plugin, context),
     do: validator(rest, current_errors, value, type, plugin, context)
