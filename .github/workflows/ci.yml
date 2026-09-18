@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Format, Credo, Dialyzer, Test
+    runs-on: ubuntu-24.04
+    env:
+      MIX_ENV: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: erlef/setup-beam@v1
+        id: beam
+        with:
+          version-file: .tool-versions
+          version-type: strict
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: lint-${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-${{ hashFiles('mix.lock') }}
+          restore-keys: |
+            lint-${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-
+
+      - run: mix deps.get
+
+      - run: mix format --check-formatted
+
+      - run: mix credo
+
+      - run: mix dialyzer
+
+      - run: mix test
+        env:
+          MIX_ENV: test
+
+  matrix:
+    name: Test (Elixir ${{ matrix.elixir }}, Phoenix ${{ matrix.phoenix }}, LiveView ${{ matrix.live_view }})
+    runs-on: ubuntu-24.04
+    env:
+      MIX_ENV: test
+      PHOENIX_VERSION: ${{ matrix.phoenix }}
+      LIVE_VIEW_VERSION: ${{ matrix.live_view }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - elixir: "1.16.3"
+            otp: "26.2.5.21"
+            phoenix: "~> 1.6.17"
+            live_view: "~> 0.20.17"
+          - elixir: "1.17.3"
+            otp: "27.3.4.17"
+            phoenix: "~> 1.7.0"
+            live_view: "~> 0.20.17"
+          - elixir: "1.18.5"
+            otp: "27.3.4.17"
+            phoenix: "~> 1.7.24"
+            live_view: "~> 1.0.19"
+          - elixir: "1.19.6"
+            otp: "28.5.0.6"
+            phoenix: "~> 1.8.14"
+            live_view: "~> 1.1.33"
+          - elixir: "1.20.4"
+            otp: "29.1"
+            phoenix: "~> 1.8.14"
+            live_view: "~> 1.2.12"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: ${{ matrix.elixir }}
+          otp-version: ${{ matrix.otp }}
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: test-${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.otp }}-${{ matrix.phoenix }}-${{ matrix.live_view }}-${{ hashFiles('mix.lock') }}
+
+      # The lock file pins one Phoenix and LiveView pair, and their deps along,
+      # so it cannot satisfy every cell of the matrix.
+      - run: mix deps.unlock --all
+
+      - run: mix deps.get
+
+      - run: mix test

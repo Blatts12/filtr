@@ -22,8 +22,7 @@ defmodule Filtr.Processor do
     :maps.fold(&process_entry/3, context, schema)
   end
 
-  defp process_entry(key, %{type: nested_schema} = key_schema, context)
-       when is_map(nested_schema) do
+  defp process_entry(key, %{type: nested_schema} = key_schema, context) when is_map(nested_schema) do
     value = Context.get_param(context, key)
 
     if missing_key?(key_schema, value) do
