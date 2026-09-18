@@ -5,70 +5,44 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-> These changes are slated for the **2.0.0** release.
+## [2.0.0] - 2026-09-18
 
 ### Breaking changes
 
-- **Schema entries are now maps instead of keyword lists.** Every field maps to a
-  `%{type: ...}` map rather than a `[type: ...]` keyword list.
-- **`:required` and `:default` are top-level keys.** They were moved out of the
-  `:validators` list onto the field map itself.
-- **Nested schemas are wrapped under `:type`.** A nested schema is now the value of a
-  `:type` key (`%{type: %{...}}`) instead of being assigned directly to the field.
-- **Plugin callbacks receive a context map** as their last argument instead of an opts
-  keyword list. Custom plugins that read from the old opts keyword must be updated.
+- Schema entries are maps (`%{type: ...}`) instead of keyword lists
+- `:required` and `:default` moved out of `:validators` onto the field map
+- Nested schemas are wrapped under `:type` (`%{type: %{...}}`)
+- Plugin callbacks receive a context map as their last argument instead of an opts keyword list
 
 ### Changed
 
-- The processing logic was extracted from `Filtr` into a dedicated `Filtr.Processor`
-  pipeline (`Cast`, `Validate`, `Value`, `Context`, `Default`, `Error`, `Opaque`) plus a
-  central `Filtr.Types` module. `Filtr.run/3` now delegates to `Filtr.Processor.run/3`.
-- `Filtr.Helpers.parse_param_opts/1` now returns a map (was a keyword list) and recognizes
-  `:type`, `:default`, `:required`, and `:error_mode` as top-level keys, grouping everything
-  else under `:validators`.
-- The per-key hot path does less work. `Filtr.run/3` no longer pre-seeds the plugin map into
-  the run opts, since `Filtr.Processor.Context` already resolves it lazily. The context keeps
-  the opts keyword as it arrives instead of rebuilding it twice. Schema and plugin lookups for
-  `:type`, `:required`, `:validators`, `:default`, and `:error_mode` are function-head matches
-  now, not `Map.get/3` and `Access` calls.
+- Extract processing into a `Filtr.Processor` pipeline and a central `Filtr.Types` module
+- `Filtr.Helpers.parse_param_opts/1` returns a map and reads `:type`, `:default`, `:required`,
+  `:error_mode` as top-level keys
 
 ### Performance
 
-The v2 schema/processor refactor - map-based schema entries, top-level `:required` / `:default`, and the dedicated `Filtr.Processor` pipeline - cut the
-bulk of the time and memory, with the largest gains on nested and list-heavy schemas. A
-follow-up pass over the per-key hot path removed the remaining `Map.get/3` and `Access`
-dispatch, which is worth another 10% or so on short schemas and up to 20% on single-value
-casts. Measured on an AMD Ryzen 7 5800X (Elixir 1.20.1 / Erlang 29.0.2). See
-`benchmark/results.md` for full numbers.
+- ~32% faster processing and ~40% less memory on average, see `benchmark/results.md`
 
-**Faster processing**
+### Migration
 
-| Workload                              | Before   | After   | Change      |
-| ------------------------------------- | -------- | ------- | ----------- |
-| Full mixed-schema run (all types)     | 6.45 μs  | 4.22 μs | ~35% faster |
-| Nested schema, depth 10               | 2.21 μs  | 1.59 μs | ~28% faster |
-| Nested schema, depth 50               | 9.21 μs  | 6.04 μs | ~34% faster |
-| List of nested schemas, depth 10      | 3.06 μs  | 2.06 μs | ~33% faster |
-| List of nested schemas, depth 50      | 13.81 μs | 8.44 μs | ~39% faster |
-| `collect_errors/1` (list of 100 maps) | 6.43 μs  | 4.52 μs | ~30% faster |
-| Boolean cast                          | 496 ns   | 293 ns  | ~41% faster |
-| Per-type validator suite (e.g. list)  | 858 ns   | 695 ns  | ~19% faster |
+Macro DSL only (`param :name, :string, ...`)? Recompiling is enough. Hand-built schema maps
+passed to `Filtr.run/2,3` and custom plugins need the changes below.
 
-**Lower memory usage**
+| Concept         | v1                                              | v2                                                 |
+| --------------- | ----------------------------------------------- | -------------------------------------------------- |
+| Field           | `[type: :string]`                               | `%{type: :string}`                                 |
+| Required        | `[type: :string, validators: [required: true]]` | `%{type: :string, required: true, validators: []}` |
+| Default         | `[type: :integer, validators: [default: 0]]`    | `%{type: :integer, default: 0, validators: []}`    |
+| Validators      | `[type: :integer, validators: [min: 18]]`       | `%{type: :integer, validators: [min: 18]}`         |
+| Nested schema   | `%{user: %{name: [type: :string]}}`             | `%{user: %{type: %{name: %{type: :string}}}}`      |
+| List of scalars | `[type: {:list, :string}]`                      | `%{type: {:list, :string}}`                        |
+| List of schemas | `[type: {:list, %{...}}]`                       | `%{type: {:list, %{...}}}`                         |
 
-| Workload                          | Before   | After    | Change    |
-| --------------------------------- | -------- | -------- | --------- |
-| Full mixed-schema run (all types) | 12 KB    | 6.30 KB  | ~48% less |
-| Nested schema, depth 10           | 5.23 KB  | 3.41 KB  | ~35% less |
-| Nested schema, depth 50           | 22.78 KB | 14.38 KB | ~37% less |
-| List of nested schemas, depth 10  | 7.06 KB  | 4.64 KB  | ~34% less |
-| List of nested schemas, depth 50  | 32.38 KB | 21.20 KB | ~35% less |
-| String, full validator set        | 1672 B   | 944 B    | ~44% less |
-| Boolean cast                      | 792 B    | 360 B    | ~55% less |
-| Integer, full validator set       | 832 B    | 512 B    | ~38% less |
-| Plugin dispatch                   | 656 B    | 384 B    | ~41% less |
+Anything that is not `:type`, `:default`, `:required`, or `:error_mode` stays in `:validators`.
+Plugin `cast/3` and `validate/4` get the context map as their last argument now, so read
+`params`, `key`, `error_mode` or `opts` from it instead of an opts keyword (see
+`Filtr.Processor.Context`).
 
 ## [1.0.1] - 2026-07-04
 
