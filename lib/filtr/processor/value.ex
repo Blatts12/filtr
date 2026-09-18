@@ -1,5 +1,11 @@
 defmodule Filtr.Processor.Value do
-  @moduledoc false
+  @moduledoc """
+  Helpers for the values moving through the pipeline.
+
+  It runs the cast then validate sequence for a single key, and normalizes the
+  wrapped `{:ok, value}` and `{:error, errors}` shapes into what ends up in the
+  result map. Internal module, the API may change between releases.
+  """
 
   alias Filtr.Processor.Cast
   alias Filtr.Processor.Context

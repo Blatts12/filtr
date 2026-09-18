@@ -1,5 +1,12 @@
 defmodule Filtr.Processor.Context do
-  @moduledoc false
+  @moduledoc """
+  Carries the state of a single processing run.
+
+  The context holds the incoming params, the result collected so far, the
+  plugin map and the error mode. Every step reads from it and returns an
+  updated copy, so nothing in the pipeline keeps state of its own. Internal
+  module, the API may change between releases.
+  """
 
   alias Filtr.Helpers
   alias Filtr.Processor.Value

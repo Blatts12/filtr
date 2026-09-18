@@ -1,5 +1,12 @@
 defmodule Filtr.Processor do
-  @moduledoc false
+  @moduledoc """
+  Runs a schema against params and builds the result map.
+
+  This is the entry point the public `Filtr` API delegates to. It walks the
+  schema key by key, hands each value to the cast and validate steps, and
+  recurses into nested schemas and lists. Internal module, the API may change
+  between releases.
+  """
 
   alias Filtr.Processor.Cast
   alias Filtr.Processor.Context

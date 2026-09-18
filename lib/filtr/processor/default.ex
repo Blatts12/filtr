@@ -1,5 +1,11 @@
 defmodule Filtr.Processor.Default do
-  @moduledoc false
+  @moduledoc """
+  Resolves the `default` declared for a key.
+
+  A default can be a plain term, a zero arity function, or a function of one
+  argument that receives the current context. Internal module, the API may
+  change between releases.
+  """
 
   alias Filtr.Types
 

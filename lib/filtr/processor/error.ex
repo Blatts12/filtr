@@ -1,5 +1,12 @@
 defmodule Filtr.Processor.Error do
-  @moduledoc false
+  @moduledoc """
+  Applies the error mode when a key fails to cast or validate.
+
+  `:fallback` swaps in the key default and keeps going, `:strict` records the
+  errors in the result, and `:raise` stops the run. A word of caution about
+  `:fallback`: it hides bad input, so the caller never learns the value was
+  wrong. Internal module, the API may change between releases.
+  """
 
   alias Filtr.Processor.Default
   alias Filtr.Types

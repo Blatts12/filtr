@@ -1,5 +1,12 @@
 defmodule Filtr.Processor.Cast do
-  @moduledoc false
+  @moduledoc """
+  Turns a raw param into the type the schema asks for.
+
+  A type can be an atom handled by a plugin, or an inline function of one, two
+  or three arguments. Casting runs before validation, so a value that fails here
+  never reaches a validator. Internal module, the API may change between
+  releases.
+  """
 
   import Filtr.Processor.Opaque, only: [is_opaque: 1]
 

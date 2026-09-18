@@ -1,5 +1,11 @@
 defmodule Filtr.Types do
-  @moduledoc false
+  @moduledoc """
+  Shared typespecs for schemas, params, results and plugin callbacks.
+
+  Every other module in `Filtr` refers back to these types instead of spelling
+  the shapes out again. Start here when you write a plugin and need to know what
+  a schema or a context actually looks like.
+  """
 
   @type error() :: String.t()
   @type value() :: {:ok, term()} | {:error, [error()] | error()} | term()

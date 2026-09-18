@@ -1,5 +1,12 @@
 defmodule Filtr.Processor.Validate do
-  @moduledoc false
+  @moduledoc """
+  Checks a cast value against the validators declared for a key.
+
+  It also handles the `required` flag and falls back to the key default when a
+  value is missing and not required. Failures go through
+  `Filtr.Processor.Error`, which decides what the configured error mode does
+  with them. Internal module, the API may change between releases.
+  """
 
   alias Filtr.Processor.Context
   alias Filtr.Processor.Default

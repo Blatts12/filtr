@@ -1,5 +1,11 @@
 defmodule Filtr.Processor.Opaque do
-  @moduledoc false
+  @moduledoc """
+  Guard for the values that skip casting.
+
+  `:__none__` marks a param that was never sent, and `nil` marks a key typed as
+  passthrough. Both reach the result untouched. Internal module, the API may
+  change between releases.
+  """
 
   @opaque_types [:__none__, nil]
 
