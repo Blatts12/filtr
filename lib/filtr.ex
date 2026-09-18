@@ -1,252 +1,163 @@
 defmodule Filtr do
-  @moduledoc "Main file"
+  @moduledoc """
+  Parameter validation and casting for Elixir, with Phoenix integration.
 
-  alias Filtr.Helpers
+  Web params arrive as strings in a map with string keys, and every handler ends up
+  repeating the same parsing and bounds checks. Filtr takes a schema, casts each value
+  to the type you declared, runs your validators, and hands back a map with atom keys.
+
+  This module is the entry point for standalone use. If you are in a Phoenix app, look
+  at `Filtr.Controller` and `Filtr.LiveView` instead. They give you a `param` macro that
+  builds the schema at compile time.
+
+  ## Schema shape
+
+  A schema is a map of keys to key schemas. Each key schema is itself a map, with `:type`
+  as the only required field.
+
+      schema = %{
+        name: %{type: :string, required: true, validators: [min: 2]},
+        age: %{type: :integer, validators: [min: 18, max: 120]},
+        tags: %{type: {:list, :string}, default: [], validators: [max: 5]}
+      }
+
+      Filtr.run(schema, %{"name" => "John Doe", "age" => "25"})
+      # %{name: "John Doe", age: 25, tags: [], _valid?: true}
+
+  Let's break down the fields of a key schema:
+
+  - `:type` - a type atom handled by a plugin (see `Filtr.DefaultPlugin`), a `{:list, type}`
+    tuple, a nested schema map, `nil` or `:__none__` to pass the value through untouched,
+    or a function of arity 1, 2 or 3 to cast the value yourself.
+  - `:required` - when `true`, a missing or empty value is an error. Required is checked
+    before `:default`, so in `:strict` and `:raise` mode a required key with a default
+    still fails when the param is absent.
+  - `:default` - the value used when the key is missing, or when it fails in `:fallback`
+    mode. A zero-arity or one-arity function is called for you, which is how you get
+    dynamic defaults like timestamps.
+  - `:validators` - a keyword list of rules the plugin for that type understands, plus
+    `custom: fun` for your own check.
+  - `:error_mode` - overrides the run-wide mode for this one key.
+
+  Nesting works by putting a schema map in `:type`, and lists of nested maps by putting
+  one in a `{:list, schema}` tuple.
+
+  ## Error modes
+
+  Every run happens in one of three modes, passed as `error_mode:` to `run/3`:
+
+  - `:fallback` (the default) replaces a bad value with its `:default`, or `nil` when
+    there is none. Nothing blows up, so you get a usable map out of hostile input.
+  - `:strict` leaves `{:error, [message]}` tuples in the result map for you to inspect.
+  - `:raise` raises a `RuntimeError` on the first bad value.
+
+  Set the app-wide default in config, and note that Filtr reads it at compile time:
+
+      config :filtr, error_mode: :strict
+
+  Pick the mode per use case. `:fallback` is forgiving but silent, so a typo in a filter
+  param looks the same as no param at all. `:strict` is the honest choice for forms and
+  APIs, at the cost of checking `_valid?` yourself.
+
+  ## Reading the result
+
+  The result map always carries a `_valid?` boolean, in every mode, so you never have to
+  scan the fields to know whether the run was clean. In `:strict` mode, `collect_errors/1`
+  turns the scattered error tuples into one nested map of messages.
+
+      result = Filtr.run(schema, params, error_mode: :strict)
+
+      if result._valid? do
+        save(result)
+      else
+        render_errors(Filtr.collect_errors(result))
+      end
+
+  ## Nested schemas and lists
+
+  Put a schema map in `:type` to validate a nested map of params, and wrap one in a
+  `{:list, schema}` tuple for a list of them. Nesting goes as deep as you need.
+
+      schema = %{
+        user: %{
+          type: %{
+            name: %{type: :string, required: true},
+            address: %{type: %{country: %{type: :string, default: "US"}}}
+          }
+        },
+        items: %{
+          type:
+            {:list,
+             %{
+               name: %{type: :string, required: true},
+               quantity: %{type: :integer, default: 1, validators: [min: 1]}
+             }}
+        }
+      }
+
+      Filtr.run(schema, %{
+        "user" => %{"name" => "John", "address" => %{}},
+        "items" => [%{"name" => "Rope", "quantity" => "2"}]
+      })
+      # %{
+      #   user: %{name: "John", address: %{country: "US"}},
+      #   items: [%{name: "Rope", quantity: 2}],
+      #   _valid?: true
+      # }
+
+  Phoenix parses `items[0][name]=Rope` into a map keyed by index rather than a list, and
+  Filtr turns those back into a list for you. The keys are sorted numerically, so item 10
+  lands after item 2 the way you would expect. Keys that are not numbers keep plain key
+  order, which is the sensible fallback but not an order worth relying on.
+
+  ## Casting with your own function
+
+  When a type belongs to one schema only, skip the plugin and put a function in `:type`.
+  Filtr picks the clause by arity, passing the value, then the key schema and the run
+  context as you ask for more arguments.
+
+      slugify = fn value, _ctx ->
+        case String.trim(value) do
+          "" -> {:error, "cannot be blank"}
+          trimmed -> {:ok, String.downcase(trimmed)}
+        end
+      end
+
+      Filtr.run(%{slug: %{type: slugify}}, %{"slug" => " My Post "})
+      # %{slug: "my post", _valid?: true}
+
+  The arities are `value`, then `(value, context)`, then `(value, key_schema, context)`.
+  Return `{:ok, value}` or `{:error, message}`, and note that a bare value is accepted too
+  and treated as success.
+
+  ## Custom validators
+
+  The `custom:` validator takes a function, again dispatched by arity: `value`,
+  `(value, type)`, or `(value, type, context)`.
+
+      email? = fn value -> String.contains?(value, "@") end
+
+      %{email: %{type: :string, validators: [custom: email?]}}
+
+  Passing counts as `:ok`, `true` or `{:ok, _}`. Failing counts as `:error`, `false` or
+  `{:error, message}`, and the first two produce the message "invalid value".
+
+  ## Passing values through
+
+  Set `:type` to `nil` or `:__none__` for a param you want kept as is, with no casting and
+  no validation.
+
+      %{metadata: %{type: nil}}
+
+  A word of caution about `:__none__`. It is also the internal marker for a missing param,
+  so avoid returning it as a real value from your own casts.
+  """
 
   @spec run(schema :: map(), params :: map()) :: map()
   @spec run(schema :: map(), params :: map(), run_opts :: keyword()) :: map()
   def run(schema, params, run_opts \\ []) do
-    run_opts = Keyword.put(run_opts, :plugin_map, Helpers.type_plugin_map())
-
-    {result, valid?} =
-      Enum.reduce(schema, {%{}, true}, fn
-        {key, nested_schema}, {acc, acc_valid?} when is_map(nested_schema) ->
-          {_key, nested_result, nested_valid?} =
-            process_nested_schema(key, nested_schema, params, run_opts)
-
-          {Map.put(acc, key, nested_result), acc_valid? and nested_valid?}
-
-        {key, opts}, {acc, acc_valid?} ->
-          opts = Keyword.merge(run_opts, opts)
-          {type, opts} = Keyword.pop!(opts, :type)
-
-          {_key, processed_value, value_valid?} =
-            case type do
-              {:list, nested_schema} when is_map(nested_schema) ->
-                process_list_with_nested_schema(key, nested_schema, params, run_opts, opts)
-
-              {:list, type} ->
-                process_list(key, type, params, opts)
-
-              type ->
-                process_field(key, type, params, opts)
-            end
-
-          {Map.put(acc, key, processed_value), acc_valid? and value_valid?}
-      end)
-
-    Map.put(result, :_valid?, valid?)
+    Filtr.Processor.run(schema, params, run_opts)
   end
-
-  defp process_nested_schema(key, nested_schema, params, run_opts) do
-    values = get_value(params, key)
-    nested_result = run(nested_schema, values, run_opts)
-    {nested_valid?, nested_result} = Map.pop(nested_result, :_valid?, true)
-
-    {key, nested_result, nested_valid?}
-  end
-
-  defp process_list_with_nested_schema(key, nested_schema, params, run_opts, _opts) do
-    values = get_value(params, key)
-
-    {nested_result, nested_valid?} =
-      cond do
-        is_list(values) ->
-          process_list_values(values, nested_schema, run_opts)
-
-        is_map(values) ->
-          process_map_values(values, nested_schema, run_opts)
-
-        true ->
-          {[], true}
-      end
-
-    {key, nested_result, nested_valid?}
-  end
-
-  defp process_list_values(values, nested_schema, run_opts) do
-    {result, valid?} =
-      Enum.reduce(values, {[], true}, fn value, {acc, valid?} ->
-        nested_result = run(nested_schema, value, run_opts)
-        nested_valid? = Map.get(nested_result, :_valid?, true)
-        nested_result = Map.delete(nested_result, :_valid?)
-
-        {[nested_result | acc], valid? and nested_valid?}
-      end)
-
-    {Enum.reverse(result), valid?}
-  end
-
-  defp process_map_values(values, nested_schema, run_opts) do
-    {result, valid?} =
-      Enum.reduce(values, {[], true}, fn {_, value}, {acc, valid?} ->
-        nested_result = run(nested_schema, value, run_opts)
-        nested_valid? = Map.get(nested_result, :_valid?, true)
-        nested_result = Map.delete(nested_result, :_valid?)
-
-        {[nested_result | acc], valid? and nested_valid?}
-      end)
-
-    {Enum.reverse(result), valid?}
-  end
-
-  defp process_list(key, type, params, opts) do
-    values =
-      params
-      |> get_value(key)
-      |> Enum.map(fn value ->
-        key
-        |> process_value(value, type, opts)
-        |> elem(1)
-      end)
-
-    list_valid? = not Enum.any?(values, &match?({:error, _}, &1))
-
-    {key, values, list_valid?}
-  end
-
-  defp process_field(key, type, params, opts) do
-    value = get_value(params, key)
-    {_key, processed_value} = process_value(key, value, type, opts)
-    value_valid? = not match?({:error, _}, processed_value)
-
-    {key, processed_value, value_valid?}
-  end
-
-  defp process_value(key, value, type, opts) do
-    plugin = opts[:plugin_map][type]
-
-    with {:ok, value} <- cast(key, value, type, opts, plugin),
-         {:ok, value} <- validate(key, value, type, opts, plugin) do
-      {key, value}
-    else
-      error -> {key, error}
-    end
-  end
-
-  defp cast(key, value, cast_fn, opts, _plugin) when is_function(cast_fn, 2) do
-    case cast_fn.(value, opts) do
-      {:ok, value} -> {:ok, value}
-      {:error, errors} when is_list(errors) -> process_errors_with_mode(key, errors, opts)
-      {:error, error} -> process_error_with_mode(key, error, opts)
-      value -> {:ok, value}
-    end
-  end
-
-  defp cast(_key, value, :__none__, _opts, _plugin), do: {:ok, value}
-  defp cast(_key, value, nil, _opts, _plugin), do: {:ok, value}
-
-  defp cast(key, nil, _type, opts, _plugin) do
-    validators = Keyword.get(opts, :validators, [])
-    default = Keyword.get(validators, :default, :__none__)
-    required? = Keyword.get(validators, :required, false)
-
-    if required? and default == :__none__ do
-      process_error_with_mode(key, "required", opts)
-    else
-      {:ok, default_value(default)}
-    end
-  end
-
-  defp cast(key, _, type, opts, nil) do
-    process_error_with_mode(key, "missing cast plugin for type #{type}", opts)
-  end
-
-  defp cast(key, value, type, opts, plugin) do
-    case plugin.cast(value, type, opts) do
-      {:ok, value} -> {:ok, value}
-      {:error, error} -> process_error_with_mode(key, error, opts)
-      :not_handled -> {:error, "missing cast for #{type}"}
-    end
-  end
-
-  defp validate(key, value, type, opts, plugin) do
-    validators = Keyword.get(opts, :validators, [])
-
-    errors =
-      validators
-      |> Enum.map(fn
-        {:default, _} ->
-          true
-
-        {:required, _} ->
-          true
-
-        {:custom, func} when is_function(func, 3) ->
-          func.(value, type, opts)
-
-        {:custom, func} when is_function(func, 2) ->
-          func.(value, type)
-
-        {:custom, func} when is_function(func, 1) ->
-          func.(value)
-
-        validator ->
-          plugin_validate(plugin, value, type, validator, opts)
-      end)
-      |> process_validator_results()
-
-    case errors do
-      [] -> {:ok, value}
-      errors -> process_errors_with_mode(key, errors, opts)
-    end
-  end
-
-  defp plugin_validate(nil, _, type, _, _), do: {:error, "missing validation plugin for type #{type}"}
-
-  defp plugin_validate(plugin, value, type, validator, opts) do
-    case plugin.validate(value, type, validator, opts) do
-      :not_handled -> {:error, "missing validate for #{type}, #{inspect(validator)}"}
-      result -> result
-    end
-  end
-
-  defp process_validator_results(results) do
-    Enum.reduce(results, [], fn result, acc ->
-      case result do
-        true -> acc
-        :ok -> acc
-        {:ok, _} -> acc
-        false -> ["invalid value" | acc]
-        :error -> ["invalid value" | acc]
-        {:error, error} -> [error | acc]
-      end
-    end)
-  end
-
-  defp process_error_with_mode(key, error, opts) do
-    error_mode = Keyword.get_lazy(opts, :error_mode, fn -> Helpers.default_error_mode() end)
-    validators = Keyword.get(opts, :validators, [])
-    default = Keyword.get(validators, :default, :__none__)
-
-    case error_mode do
-      :fallback -> {:ok, default_value(default)}
-      :raise -> raise "Invalid value for #{key}: #{error}"
-      _ -> {:error, [error]}
-    end
-  end
-
-  defp process_errors_with_mode(key, errors, opts) do
-    error_mode = Keyword.get_lazy(opts, :error_mode, fn -> Helpers.default_error_mode() end)
-    validators = Keyword.get(opts, :validators, [])
-    default = Keyword.get(validators, :default, :__none__)
-
-    case error_mode do
-      :fallback -> {:ok, default_value(default)}
-      :raise -> raise "Invalid value for #{key}: #{Enum.join(Enum.uniq(errors), ", ")}"
-      _ -> {:error, Enum.uniq(errors)}
-    end
-  end
-
-  defp get_value(nil, _key), do: nil
-
-  defp get_value(params, key) do
-    Map.get_lazy(params, to_string(key), fn -> Map.get(params, key) end)
-  end
-
-  defp default_value(default) when is_function(default, 0), do: default.()
-  defp default_value(:__none__), do: nil
-  defp default_value(default), do: default
 
   @doc """
   Collects all errors from a Filtr result map into a structured error map.
@@ -293,44 +204,5 @@ defmodule Filtr do
 
   """
   @spec collect_errors(filtr_result :: map()) :: map() | nil
-  def collect_errors(filtr_result) do
-    errors = do_collect_errors(filtr_result)
-    if errors == %{}, do: nil, else: errors
-  end
-
-  defp do_collect_errors(filtr_result) do
-    Enum.reduce(filtr_result, %{}, fn
-      {key, {:error, errors}}, acc ->
-        Map.put(acc, key, List.wrap(errors))
-
-      {key, value}, acc when is_map(value) ->
-        errors = do_collect_errors(value)
-        if errors == %{}, do: acc, else: Map.put(acc, key, errors)
-
-      {key, [value | _] = values}, acc when is_map(value) ->
-        errors =
-          values
-          |> Enum.with_index()
-          |> Enum.reduce(%{}, fn {value, index}, nested_acc ->
-            nested_errors = do_collect_errors(value)
-            if nested_errors == %{}, do: nested_acc, else: Map.put(nested_acc, index, nested_errors)
-          end)
-
-        if errors == %{}, do: acc, else: Map.put(acc, key, errors)
-
-      {key, values}, acc when is_list(values) ->
-        errors =
-          values
-          |> Enum.with_index()
-          |> Enum.reduce(%{}, fn
-            {{:error, error}, index}, nested_acc -> Map.put(nested_acc, index, List.wrap(error))
-            _, nested_acc -> nested_acc
-          end)
-
-        if errors == %{}, do: acc, else: Map.put(acc, key, errors)
-
-      _, acc ->
-        acc
-    end)
-  end
+  defdelegate collect_errors(filtr_result), to: Filtr.Errors, as: :collect
 end

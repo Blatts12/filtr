@@ -16,7 +16,7 @@ Code.require_file("plugin_support.exs", __DIR__)
 # One field, always :custom_1 (handled by Plugin1, which is present in every plugin
 # set). A validator is included so the plugin's validate/4 dispatch is exercised,
 # not just cast/3.
-schema = %{value: [type: :custom_1, validators: [check: true]]}
+schema = %{value: %{type: :custom_1, validators: [check: true]}}
 params = %{"value" => "value"}
 
 jobs =
@@ -34,7 +34,7 @@ jobs =
     {"#{count} plugins", job}
   end)
 
-Bench.run(jobs)
+Bench.run(jobs, data: params)
 
 # Leave the global plugin config the way we found it.
 FiltrBench.PluginSupport.reset()

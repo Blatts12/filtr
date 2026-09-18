@@ -65,7 +65,11 @@ defmodule Filtr.MixProject do
   defp package do
     [
       licenses: ["MIT"],
-      links: %{"GitHub" => @source}
+      files: ~w(lib mix.exs README.md CHANGELOG.md LICENSE .formatter.exs),
+      links: %{
+        "GitHub" => @source,
+        "Changelog" => "#{@source}/blob/main/CHANGELOG.md"
+      }
     ]
   end
 
@@ -73,7 +77,8 @@ defmodule Filtr.MixProject do
     [
       main: "readme",
       source_url: @source,
-      extras: ["README.md"],
+      extras: ["README.md", "CHANGELOG.md"],
+      logo: "assets/logo.png",
       source_ref: @version
     ]
   end

@@ -1,11 +1,18 @@
 defmodule Filtr.Controller do
   @moduledoc """
-  Provides Phoenix Controller integration with attr-style parameter definitions.
+  Phoenix controller integration, with parameters declared per action.
 
-  This module enables parameter handling in controllers using a syntax similar to Phoenix
-  Components' `attr` macro, but using `param` to define parameters with validation per function.
+  You declare what an action expects with `param/2` and `param/3`, in the style of the
+  `attr` macro from Phoenix Components. The params each action receives are then already
+  cast and validated, so the action body can get on with its job.
 
-  ## Usage
+  This guide assumes you know the schema fields from `Filtr`, since `param` is a shorthand
+  for them.
+
+  ## Declaring params
+
+  Every `param` call attaches to the next function you define, and the list resets after
+  it. Declare params directly above the action they belong to.
 
       defmodule MyAppWeb.UserController do
         use MyAppWeb, :controller
@@ -15,8 +22,7 @@ defmodule Filtr.Controller do
         param :age, :integer, min: 18
 
         def create(conn, params) do
-          # params.name is guaranteed to be a string
-          # params.age is guaranteed to be an integer >= 18
+          # params.name is a string, params.age is an integer of at least 18
           json(conn, %{message: "User \#{params.name} created"})
         end
 
@@ -24,17 +30,101 @@ defmodule Filtr.Controller do
         param :page, :integer, default: 1, min: 1
 
         def search(conn, params) do
-          # params.q is a string (defaults to "")
-          # params.page is an integer >= 1 (defaults to 1)
           json(conn, %{query: params.q, page: params.page})
         end
       end
+
+  The options split themselves. `:type`, `:required`, `:default` and `:error_mode` are
+  schema fields, and everything else becomes a validator, which is why `min: 18` sits
+  next to `required: true` with no extra nesting.
+
+  Params arrive as a map with atom keys and a `_valid?` flag, the same result
+  `Filtr.run/3` returns.
+
+  ## Nested params and lists
+
+  A `param` with a block declares a nested map, and `param name, :list` with a block
+  declares a list of them. Blocks may contain `param` calls only, and nest as deep as you
+  like.
+
+      param :filters do
+        param :q, :string, default: ""
+        param :category, :string, in: ["books", "movies"], default: "books"
+      end
+
+      param :items, :list do
+        param :name, :string, required: true
+        param :quantity, :integer, min: 1, default: 1
+      end
+
+      def order(conn, params) do
+        # params.filters.category, and params.items as a list of maps
+        json(conn, %{items: params.items})
+      end
+
+  ## Error modes
+
+  Pass `error_mode:` to `use` for the whole controller, and override it on single params
+  when one field deserves different treatment.
+
+      use Filtr.Controller, error_mode: :strict
+
+      param :query, :string, required: true
+      param :page, :integer, default: 1, error_mode: :fallback
+
+  Without the option, the controller uses the app-wide default from
+  `config :filtr, error_mode: mode`, which is `:fallback`. See `Filtr` for what the three
+  modes do.
+
+  ## Custom error handlers
+
+  Instead of a mode, `error_mode:` accepts a function of arity 2 that takes the connection
+  and the validated params. The controller then runs in `:strict` mode internally, and
+  your handler is called only when `params._valid?` is `false`. When everything validates,
+  the action runs as usual.
+
+      defmodule MyAppWeb.ErrorHandler do
+        def handle(conn, params) do
+          conn
+          |> Plug.Conn.put_status(:bad_request)
+          |> Phoenix.Controller.json(%{errors: Filtr.collect_errors(params)})
+          |> Plug.Conn.halt()
+        end
+      end
+
+      defmodule MyAppWeb.UserController do
+        use MyAppWeb, :controller
+        use Filtr.Controller, error_mode: &MyAppWeb.ErrorHandler.handle/2
+
+        param :name, :string, required: true
+
+        def create(conn, params) do
+          json(conn, %{message: "User \#{params.name} created"})
+        end
+      end
+
+  A function capture, an MFA tuple such as `{MyAppWeb.ErrorHandler, :handle, 2}`, and an
+  inline anonymous function all work. Anything else raises an `ArgumentError` at compile
+  time.
+
+  A handler keeps error responses in one place, at the cost of taking the decision away
+  from the action. When a specific action wants to answer differently, give it `:strict`
+  and read `_valid?` yourself.
+
+  ## What the macro generates
+
+  Filtr defines a wrapper around each action that has params, using `defoverridable` and
+  `super`. That means an action is validated once, and two things follow. Params are only
+  picked up on functions defined with `def` that take two arguments, and a plug that runs
+  before the action still sees the raw params from Phoenix.
   """
+
+  alias Filtr.Helpers
 
   # credo:disable-for-this-file Credo.Check.Design.AliasUsage
 
   defmacro __using__(opts \\ []) do
-    error_mode = Keyword.get(opts, :error_mode) || Filtr.Helpers.default_error_mode()
+    error_mode = Keyword.get(opts, :error_mode) || Helpers.default_error_mode()
 
     supported_error_mode? =
       case error_mode do
@@ -59,12 +149,12 @@ defmodule Filtr.Controller do
           true
 
         error_mode ->
-          Filtr.Helpers.supported_error_mode?(error_mode)
+          Helpers.supported_error_mode?(error_mode)
       end
 
     if not supported_error_mode? do
       raise ArgumentError,
-            "error_mode must be one of: #{inspect(Filtr.Helpers.supported_error_modes())} or function with MFA, function capture or anonymous function with arity 2"
+            "error_mode must be one of: #{inspect(Helpers.supported_error_modes())} or function with MFA, function capture or anonymous function with arity 2"
     end
 
     quote do
@@ -80,10 +170,10 @@ defmodule Filtr.Controller do
   end
 
   defmacro param(name, do: nested_block) do
-    nested_schema = Filtr.Helpers.render_ast_to_schema(nested_block)
+    nested_schema = Helpers.render_ast_to_schema(nested_block)
 
     quote do
-      @filtr_param_definitions {unquote(name), unquote(Macro.escape(nested_schema))}
+      @filtr_param_definitions {unquote(name), %{type: unquote(Macro.escape(nested_schema))}}
     end
   end
 
@@ -100,16 +190,19 @@ defmodule Filtr.Controller do
   defmacro param(name, type, opts \\ [])
 
   defmacro param(name, :list, do: nested_block) do
-    nested_schema = Filtr.Helpers.render_ast_to_schema(nested_block)
+    nested_schema = Helpers.render_ast_to_schema(nested_block)
 
     quote do
-      @filtr_param_definitions {unquote(name), [type: {:list, unquote(Macro.escape(nested_schema))}]}
+      @filtr_param_definitions {unquote(name), %{type: {:list, unquote(Macro.escape(nested_schema))}}}
     end
   end
 
   defmacro param(name, type, opts) when is_list(opts) do
     quote do
-      @filtr_param_definitions {unquote(name), Keyword.put(unquote(opts), :type, unquote(type))}
+      @filtr_param_definitions {unquote(name),
+                                unquote(opts)
+                                |> Keyword.put(:type, unquote(type))
+                                |> Helpers.parse_param_opts()}
     end
   end
 
@@ -123,10 +216,9 @@ defmodule Filtr.Controller do
           Map.new(param_definitions, fn {key, opts_or_schema} ->
             {
               key,
-              # If opts_or_schema is a map, it's a nested schema
               if(is_map(opts_or_schema),
                 do: opts_or_schema,
-                else: Filtr.Helpers.parse_param_opts(opts_or_schema)
+                else: Helpers.parse_param_opts(opts_or_schema)
               )
             }
           end)
@@ -140,7 +232,7 @@ defmodule Filtr.Controller do
 
   defmacro __before_compile__(env) do
     function_params = Module.get_attribute(env.module, :filtr_function_params, [])
-    error_mode = Module.get_attribute(env.module, :filtr_error_mode) || Filtr.Helpers.default_error_mode()
+    error_mode = Module.get_attribute(env.module, :filtr_error_mode) || Helpers.default_error_mode()
 
     wrappers =
       for {function_name, schema} <- function_params do

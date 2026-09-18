@@ -4,8 +4,8 @@
 Code.require_file("bench.exs", __DIR__)
 
 schema = fn depth ->
-  Enum.reduce(1..depth, %{value: [type: :integer, validators: [min: 0]]}, fn _, acc ->
-    %{items: [type: {:list, acc}]}
+  Enum.reduce(1..depth, %{value: %{type: :integer, validators: [min: 0]}}, fn _, acc ->
+    %{items: %{type: {:list, acc}}}
   end)
 end
 
@@ -15,10 +15,12 @@ params = fn depth ->
   end)
 end
 
-[2, 5, 10, 50]
+depths = [2, 5, 10, 50]
+
+depths
 |> Map.new(fn depth ->
   schema = schema.(depth)
   params = params.(depth)
   {"depth #{depth}", fn -> Filtr.run(schema, params) end}
 end)
-|> Bench.run()
+|> Bench.run(data: Enum.map(depths, &{"depth #{&1}", params.(&1)}))
