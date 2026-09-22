@@ -132,7 +132,10 @@ if Code.ensure_loaded?(Phoenix.LiveView) do
 
     defmacro param(name, type, opts) do
       quote do
-        @filtr_params {unquote(name), unquote(opts) |> Keyword.put(:type, unquote(type)) |> Helpers.parse_param_opts()}
+        @filtr_params {unquote(name),
+                       unquote(opts)
+                       |> Keyword.put(:type, unquote(type))
+                       |> Helpers.parse_param_opts(unquote(name))}
       end
     end
 
@@ -151,7 +154,7 @@ if Code.ensure_loaded?(Phoenix.LiveView) do
               key,
               if(is_map(opts_or_schema),
                 do: opts_or_schema,
-                else: Helpers.parse_param_opts(opts_or_schema)
+                else: Helpers.parse_param_opts(opts_or_schema, key)
               )
             }
           end)

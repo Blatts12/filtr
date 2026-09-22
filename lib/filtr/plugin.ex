@@ -135,7 +135,7 @@ defmodule Filtr.Plugin do
   """
   @spec all() :: [module()]
   def all do
-    plugins = Application.get_env(:filtr, :plugins, [])
+    plugins = Application.get_env(:filtr, :plugins) || []
     [Filtr.DefaultPlugin | plugins]
   end
 

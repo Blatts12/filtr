@@ -3,6 +3,8 @@ defmodule Filtr.Helpers do
   Helper functions for Filtr schema processing and plugin management.
   """
 
+  alias Filtr.CompileCheck
+
   @supported_error_modes [:fallback, :strict, :raise]
   @type_plugin_map_key :filtr_type_plugin_map
 
@@ -65,8 +67,18 @@ defmodule Filtr.Helpers do
 
   @run_opts_keys [:error_mode]
 
+  @doc """
+  Turns the options of a single `param` call into a key schema.
+
+  Runs while the calling module compiles, which is where the declared type is checked.
+  See `Filtr.CompileCheck` for what that catches. The key is only used to name the param
+  in the error message.
+  """
   @spec parse_param_opts(keyword()) :: map()
-  def parse_param_opts(opts) do
+  @spec parse_param_opts(keyword(), key :: atom() | nil) :: map()
+  def parse_param_opts(opts, key \\ nil) do
+    CompileCheck.check_type!(key, Keyword.get(opts, :type))
+
     opts_keys = [:type, :default, :required] ++ @run_opts_keys
     validators = Keyword.drop(opts, opts_keys)
 
@@ -112,7 +124,7 @@ defmodule Filtr.Helpers do
   def render_ast_to_schema({:param, _, args}, schema) do
     {key, type, opts} = extract_opts(args)
     opts = Keyword.put(opts, :type, type)
-    Map.put(schema, key, parse_param_opts(opts))
+    Map.put(schema, key, parse_param_opts(opts, key))
   end
 
   def render_ast_to_schema({:__block__, _, items}, schema) when is_list(items) do

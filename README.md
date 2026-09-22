@@ -12,6 +12,7 @@ Web params arrive as strings in a map with string keys, and every handler ends u
 - **Zero dependencies** - Phoenix and LiveView are optional
 - **`param` macro** - declarative syntax, familiar from Phoenix Components
 - **Nested schemas** - deep nesting and lists of nested schemas
+- **Compile-time checks** - a mistyped type fails the build, not the first request
 
 ## Requirements
 
@@ -122,6 +123,21 @@ config :filtr, error_mode: :strict
 The result map always carries a `_valid?` boolean, in every mode, so you never have to
 scan the fields to know whether the run was clean.
 
+## Compile-time checks
+
+A type you misspell is a mistake in your code, so Filtr looks it up while your module
+compiles rather than waiting for a request to hit the param.
+
+```elixir
+param :age, :intger
+# ** (ArgumentError) unknown type :intger for param :age
+#
+#    Did you mean :integer?
+```
+
+The check covers types the macro can see as literals, which is almost all of them. See `Filtr.CompileCheck` for the full list of what passes and how to turn the check
+off.
+
 ## Where to read next
 
 The reference documentation lives with the code:
@@ -130,6 +146,7 @@ The reference documentation lives with the code:
   functions
 - `Filtr.Controller` - the `param` macro in controllers, and custom error handlers
 - `Filtr.LiveView` - params in LiveViews and how they reach the assigns
+- `Filtr.CompileCheck` - what the compile-time type check catches, and its limits
 - `Filtr.DefaultPlugin` - the built-in types and every validator they support
 - `Filtr.Plugin` - writing, registering and overriding plugins
 

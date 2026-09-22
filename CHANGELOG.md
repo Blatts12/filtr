@@ -5,6 +5,20 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `Filtr.CompileCheck` checks the `:type` of every `param` while the module compiles, so a
+  typo such as `param :age, :intger` raises with a suggestion instead of failing on the
+  first request.
+- `Filtr.Helpers.parse_param_opts/2` takes the param key, used to name the param in the
+  compile-time error
+
+### Fixed
+
+- `Filtr.Plugin.all/0` no longer crashes when `config :filtr, plugins: nil`
+
 ## [2.0.0] - 2026-09-18
 
 ### Breaking changes
